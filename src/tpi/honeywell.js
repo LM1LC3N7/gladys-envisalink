@@ -8,16 +8,19 @@
 //
 // - `%00,PP,IIII,NNN,BB,ALPHA$` virtual keypad update: partition, icon
 //   bitfield (hex), zone or user number, beeps, the 32 keypad characters;
-// - `%01,<16 hex>$` zone state change: 8 bytes, byte i bit b = zone 8i+b+1
-//   faulted (pyenvisalink's byte swapping gives the same order);
+// - `%01,<16 or 32 hex>$` zone state change: 8 bytes (64 zones) or 16 bytes
+//   (128 zones), byte i bit b = zone 8i+b+1 faulted (the order of
+//   homebridge-envisalink-ademco, MIT);
 // - `%02,<16 hex>$` partition state change: one byte per partition (1-8);
 // - `%03,QEEEPPZZZ$` Contact ID event: qualifier (1 new event or opening,
-//   3 restore or closing), event code, partition, zone or user.
+//   3 restore or closing, 6 status of a condition still present), event
+//   code, partition, zone or user.
 //
 // Commands: `^00,$` keep-alive, `^03,P,keys$` keys to a partition; the alarm
 // commands are keypad sequences: code + 2 away, + 3 stay, + 7 instant (stay
-// without entry delay: "night" here), + 1 off; A / B / C pressed three times
-// fire / medical / police panic, as pyenvisalink does.
+// without entry delay: "night" here), + 1 off; A / B / C once for the fire /
+// medical / police panic, as pyenvisalink does (experimental: the keypad
+// function keys depend on the panel programming).
 // -----------------------------------------------------------------------------
 
 export const ICONS = {
@@ -85,7 +88,7 @@ export const encode = {
   poll: () => '^00,$\r\n',
   arm: (partition, mode, code) => keys(partition, `${code}${ARM_KEYS[mode]}`),
   disarm: (partition, code) => keys(partition, `${code}1`),
-  panic: (kind, partition = 1) => keys(partition, PANIC_KEYS[kind].repeat(3)),
+  panic: (kind, partition = 1) => keys(partition, PANIC_KEYS[kind]),
 };
 
 /** Keypad texts naming a zone: `FAULT 05 FRONT DOOR`, `ALARM 012`, `CHECK 3`. */
@@ -105,13 +108,16 @@ function keypadUpdate(fields) {
   else if (has(ICONS.armedAway) && has(ICONS.armedZeroEntry)) mode = 'armed_night';
   else if (has(ICONS.armedStay)) mode = 'armed_stay';
   else if (has(ICONS.armedAway)) mode = 'armed_away';
+  const alarm = has(ICONS.alarm) || has(ICONS.alarmFire);
   const events = [
     {
       type: 'partition',
       partition,
       mode,
       ready: has(ICONS.ready),
-      alarm: has(ICONS.alarm) || has(ICONS.alarmFire),
+      alarm,
+      // The alarm is a fire alarm: the cause of the alarm_triggered event.
+      ...(has(ICONS.alarmFire) ? { fire: true } : {}),
       // The "ARMED ... MAY EXIT NOW" text is the only exit delay sign of the keypad.
       exitDelay: mode !== 'disarmed' && /EXIT/.test(alpha),
     },
@@ -129,7 +135,11 @@ function keypadUpdate(fields) {
     if (what === 'FAULT') {
       events.push({ type: 'zone', zone: number, partition, open: true, source: 'keypad' });
     } else if (what === 'ALARM' || what === 'FIRE') {
-      events.push({ type: 'zone', zone: number, partition, alarm: true, source: 'keypad' });
+      // A disarmed keypad keeps showing "ALARM nn" from its memory: only an
+      // armed partition or a raised alarm bit means a zone in alarm now.
+      if (mode !== 'disarmed' || alarm) {
+        events.push({ type: 'zone', zone: number, partition, alarm: true, source: 'keypad' });
+      }
     } else if (what === 'TAMPER') {
       events.push({ type: 'zone', zone: number, partition, tamper: true, source: 'keypad' });
     } else {
@@ -144,9 +154,10 @@ function keypadUpdate(fields) {
 }
 
 function zoneStates(hex) {
-  if (!/^[0-9A-F]{16}$/i.test(hex)) return [];
+  // 64 zones (16 hex) on most firmwares, 128 (32 hex) on the larger Vista panels.
+  if (!/^(?:[0-9A-F]{16}){1,2}$/i.test(hex)) return [];
   const states = [];
-  for (let byte = 0; byte < 8; byte += 1) {
+  for (let byte = 0; byte < hex.length / 2; byte += 1) {
     const value = Number.parseInt(hex.slice(byte * 2, byte * 2 + 2), 16);
     for (let bit = 0; bit < 8; bit += 1) {
       states.push(Boolean(value & (1 << bit)));
@@ -167,18 +178,28 @@ function partitionStates(hex) {
   return events;
 }
 
+/**
+ * Contact ID open / close codes that carry a user: 401 by user, 403
+ * automatic, 407 remote, 408 quick arm, 409 keyswitch, 441 / 442 armed stay
+ * (402 group, 404-406 late / early / cancel are not an arm or a disarm).
+ */
+const USER_CODES = new Set([401, 403, 407, 408, 409, 441, 442]);
+
 /** Contact ID codes used here (SIA DC-05). */
 function contactId(text) {
   // QEEEPPZZZ; some firmwares are said to add a padding digit: tolerated.
   const match = /^([136])(\d{3})(\d{2})(\d{3})\d?$/.exec(text);
   if (!match) return [];
   const restore = match[1] === '3';
+  const status = match[1] === '6';
   const code = Number(match[2]);
   const partition = Number(match[3]) || 1;
   const number = Number(match[4]);
   const active = !restore;
-  if ((code >= 400 && code <= 409) || code === 441 || code === 442) {
-    // 1 = opening (disarm), 3 = closing (arm); the number is the user.
+  if (USER_CODES.has(code)) {
+    // 1 = opening (disarm), 3 = closing (arm); the number is the user. A
+    // status (6) is no action of anyone.
+    if (status) return [];
     return [{ type: 'user', partition, action: restore ? 'arm' : 'disarm', user: number || null }];
   }
   if (code === 120 || code === 122 || code === 123) {

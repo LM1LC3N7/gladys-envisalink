@@ -7,8 +7,10 @@
 //   panic;
 // - `ext:<selector>:partition:<n>`: mode select (disarmed, away, stay,
 //   night), alarm in progress, ready to arm;
-// - `ext:<selector>:zone:<n>`: open / closed (or motion, smoke, leak, as
-//   configured), alarm, tamper, fault.
+// - `ext:<selector>:zone:<n>`: one state feature keyed by the zone kind
+//   (`:opening`, `:motion`, `:smoke` or `:leak`: a kind changed in the
+//   configuration is a new feature, never an old one with another
+//   category), alarm, tamper, fault.
 // -----------------------------------------------------------------------------
 
 import {
@@ -48,13 +50,14 @@ export const PARTITION_FEATURES = {
     max: 0,
     read_only: false,
     has_feedback: true,
-    keep_history: true,
+    // A text history is not charted by Gladys; the armed / disarmed events are the history.
+    keep_history: false,
   },
   alarm: binary(C.SIREN, T.SIREN.BINARY),
   ready: binary(C.INPUT, T.INPUT.BINARY),
 };
 
-/** The `state` feature of a zone, by zone type. */
+/** The state feature of a zone, by zone type (the type is also its feature key). */
 export const ZONE_STATE = {
   opening: binary(C.OPENING_SENSOR, T.SENSOR.BINARY),
   motion: binary(C.MOTION_SENSOR, T.SENSOR.BINARY),
@@ -150,7 +153,7 @@ export function buildDevices(gladys, config, state, panelType) {
       features: [
         feature(
           zoneIds,
-          'state',
+          zone.type,
           word(FEATURE_NAMES.state[zone.type], language),
           ZONE_STATE[zone.type],
         ),
@@ -202,7 +205,7 @@ export function buildStates(gladys, config, state, { online }) {
     if (zone.open !== undefined) {
       push(
         zoneIds,
-        'state',
+        type,
         type === 'opening'
           ? zone.open
             ? OPENING_SENSOR_STATE.OPEN

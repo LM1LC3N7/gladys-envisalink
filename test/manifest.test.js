@@ -56,6 +56,26 @@ test('the store basics', () => {
   }
 });
 
+test('no double-encoded UTF-8 (mojibake) in the manifest and the docs', () => {
+  // U+00C3 U+00A9 for "é", U+00C2 U+00AB for "«": UTF-8 read as Windows-1252
+  // and written again. Built from code points so this file never holds one.
+  const c = (code) => String.fromCharCode(code);
+  const mojibake = new RegExp(
+    `[${c(0xc2)}${c(0xc3)}][${c(0x80)}-${c(0xbf)}${c(0x20ac)}${c(0x201a)}-${c(0x2122)}]`,
+  );
+  assert.match(`caf${c(0xc3)}${c(0xa9)}`, mojibake, 'the guard catches a double encoding');
+  for (const path of [
+    'gladys-assistant-integration.json',
+    'docs/fr.md',
+    'docs/en.md',
+    'README.md',
+  ]) {
+    const text = read(path);
+    assert.doesNotMatch(text, mojibake, path);
+    assert.notEqual(text.charCodeAt(0), 0xfeff, `${path} starts with a BOM`);
+  }
+});
+
 test('every text is in English and French', () => {
   for (const [path, text] of texts(manifest)) {
     for (const lang of ['en', 'fr']) assert.ok(text[lang]?.trim(), `${path} needs ${lang}`);

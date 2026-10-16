@@ -39,11 +39,18 @@ export function parseHost(raw) {
   };
 }
 
-/** A user code: 4 to 8 digits (DSC 4 or 6, Honeywell 4), '' when absent or malformed. */
+/**
+ * A user code: 4 or 6 digits (DSC takes both, Honeywell 4 only: checked when
+ * the panel is known, see codeFits), '' when absent or malformed.
+ */
 export const normalizeCode = (raw) => {
   const text = String(raw ?? '').trim();
-  return /^\d{4,8}$/.test(text) ? text : '';
+  return /^(?:\d{4}|\d{6})$/.test(text) ? text : '';
 };
+
+/** Whether a code suits the panel family (undefined while unknown: DSC rules). */
+export const codeFits = (code, panelType) =>
+  panelType === 'honeywell' ? /^\d{4}$/.test(code) : /^(?:\d{4}|\d{6})$/.test(code);
 
 /**
  * The zone list: `1, 2=Kitchen, 3=Hall:motion, 10-12` -> [{ zone, name, type }].

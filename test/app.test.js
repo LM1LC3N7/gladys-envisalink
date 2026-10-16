@@ -8,7 +8,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createFakeGladys } from '@gladysassistant/integration-sdk/testing';
 import { EnvisalinkApp } from '../src/app.js';
-import { LIMITS } from '../src/constants.js';
+import { LIMITS, TIMINGS } from '../src/constants.js';
 import { registerHandlers } from '../src/handlers.js';
 import { frame } from '../src/tpi/dsc.js';
 import { FakeEnvisalink, quietLogger, settle } from './helpers/fakeEnvisalink.js';
@@ -87,8 +87,8 @@ test('DSC events become states', async (t) => {
   await settle();
   assert.equal(ctx.state(partition().feature('mode')), 'disarmed');
   assert.equal(ctx.state(partition().feature('ready')), 1);
-  assert.equal(ctx.state(zone(1).feature('state')), 0, 'opening: 0 = open (core convention)');
-  assert.equal(ctx.state(zone(2).feature('state')), 1, 'motion: 1 = motion');
+  assert.equal(ctx.state(zone(1).feature('opening')), 0, 'opening: 0 = open (core convention)');
+  assert.equal(ctx.state(zone(2).feature('motion')), 1, 'motion: 1 = motion');
   assert.equal(ctx.state(zone(2).feature('tamper')), 1);
   assert.equal(ctx.state(zone(1).feature('fault')), 1);
   assert.equal(ctx.state(panel.feature('ac-power')), 0);
@@ -97,17 +97,53 @@ test('DSC events become states', async (t) => {
   assert.equal(ctx.state(panel.feature('trouble')), 1);
   server.dsc('610', '001');
   await settle();
-  assert.equal(ctx.state(zone(1).feature('state')), 1, 'closed');
+  assert.equal(ctx.state(zone(1).feature('opening')), 1, 'closed');
   assert.match(ctx.gladys.fake.connectionStatus.message.en, /\(1: disarmed\)/);
 });
 
-test('a zone the panel reports is added as a device', async (t) => {
+test('zones the panel reports are added as devices, in one list per burst', async (t) => {
   const ctx = await setup(t);
   assert.equal(ctx.gladys.fake.discoveredDevices.length, 2);
-  ctx.server.dsc('609', '017');
+  const before = ctx.gladys.fake.bodies('POST', '/discovered_device').length;
+  for (let z = 17; z < 27; z += 1) ctx.server.dsc('609', String(z).padStart(3, '0'));
+  await settle();
+  await new Promise((resolve) => setTimeout(resolve, TIMINGS.discoveryDebounce + 50));
   await settle();
   assert.equal(ctx.device(ctx.zone(17).device).name, 'Zone 17');
-  assert.equal(ctx.state(ctx.zone(17).feature('state')), 0);
+  assert.equal(ctx.gladys.fake.discoveredDevices.length, 12);
+  assert.equal(
+    ctx.gladys.fake.bodies('POST', '/discovered_device').length - before,
+    1,
+    'one device list for the ten new zones',
+  );
+  assert.equal(ctx.state(ctx.zone(17).feature('opening')), 0);
+});
+
+test('the kind of an alarm comes from the configured zone', async (t) => {
+  const ctx = await setup(t, { config: { zones: '5=Kitchen:smoke' } });
+  ctx.server.dsc('652', '10');
+  ctx.server.dsc('601', '1005');
+  ctx.server.dsc('654', '1');
+  await settle();
+  assert.deepEqual(ctx.gladys.fake.sceneEvents.at(-1), {
+    key: 'alarm_triggered',
+    data: { partition: '1', kind: 'fire', zone: 5 },
+  });
+});
+
+test('a failed arm sends the real mode back to the dashboard', async (t) => {
+  const ctx = await setup(t);
+  ctx.server.dsc('650', '1');
+  await settle();
+  const { device, feature } = modeFeature(ctx);
+  await ctx.gladys.fake.setValue(device, feature, 'armed_away');
+  const before = ctx.gladys.fake.states.length;
+  ctx.server.dsc('659', '1');
+  await settle();
+  assert.deepEqual(ctx.gladys.fake.states.slice(before), [
+    { device_feature_external_id: feature.external_id, text: 'disarmed' },
+  ]);
+  assert.ok(ctx.logger.lines.some((line) => /failed to arm/.test(line)));
 });
 
 test('arming from the keypad, an alarm, a disarm: scene events', async (t) => {
@@ -123,7 +159,8 @@ test('arming from the keypad, an alarm, a disarm: scene events', async (t) => {
   await settle();
   assert.deepEqual(gladys.fake.sceneEvents, [
     { key: 'armed', data: { partition: '1', mode: 'armed_away', user: 5, by_gladys: false } },
-    { key: 'alarm_triggered', data: { partition: '1', kind: 'intrusion', zone: 3 } },
+    // Zone 3 is not configured: its kind, so the cause, is unknown.
+    { key: 'alarm_triggered', data: { partition: '1', kind: 'partition', zone: 3 } },
     { key: 'disarmed', data: { partition: '1', user: 2, by_gladys: false } },
   ]);
   assert.deepEqual(
@@ -132,7 +169,7 @@ test('arming from the keypad, an alarm, a disarm: scene events', async (t) => {
       .map((s) => s.state),
     [1, 0],
   );
-  assert.ok(ctx.logger.lines.some((line) => /ALARM intrusion partition 1 zone 3/.test(line)));
+  assert.ok(ctx.logger.lines.some((line) => /ALARM partition partition 1 zone 3/.test(line)));
 });
 
 test('panic keys: alarm event and panic state', async (t) => {
@@ -142,7 +179,7 @@ test('panic keys: alarm event and panic state', async (t) => {
   assert.equal(ctx.state(ctx.panel.feature('panic')), 1);
   assert.deepEqual(ctx.gladys.fake.sceneEvents.at(-1), {
     key: 'alarm_triggered',
-    data: { partition: null, kind: 'panic', zone: null },
+    data: { partition: '1', kind: 'panic', zone: null },
   });
   ctx.server.dsc('626');
   await settle();
@@ -166,10 +203,12 @@ test('arming from Gladys: the frame, the feedback, by_gladys', async (t) => {
   assert.ok(
     ctx.logger.lines.some((line) => /ARMING from Gladys: armed stay, partition 1/.test(line)),
   );
-  // Already in that mode: nothing sent.
+  // Already in that mode: nothing sent, and the message says so.
   const count = server.commands.length;
-  await gladys.fake.setValue(device, feature, 'armed_stay');
+  const same = await gladys.fake.sceneAction('arm', { partition: '1', mode: 'armed_stay' });
+  assert.equal(same.success, true);
   assert.equal(server.commands.length, count);
+  assert.ok(ctx.logger.lines.some((line) => /already armed_stay: nothing sent/.test(line)));
   // Another mode while armed: disarm first.
   const other = await gladys.fake.setValue(device, feature, 'armed_away');
   assert.equal(other.success, false);
@@ -228,7 +267,15 @@ test('disarming needs a valid code', async (t) => {
   const ctx = await setup(t, { config: { allow_disarm: true, user_code: '12' } });
   const ack = await ctx.gladys.fake.sceneAction('disarm', { partition: '1' });
   assert.equal(ack.success, false);
-  assert.match(ack.error, /4 to 8 digits/);
+  assert.match(ack.error, /4 or 6 digits/);
+});
+
+test('a Honeywell panel refuses a 6-digit code before sending anything', async (t) => {
+  const ctx = await setup(t, { type: 'honeywell', config: { user_code: '123456' } });
+  const ack = await ctx.gladys.fake.sceneAction('arm', {});
+  assert.equal(ack.success, false);
+  assert.match(ack.error, /4-digit user code/);
+  assert.deepEqual(ctx.server.commands, []);
 });
 
 test('Honeywell: keypad updates, zone bitfield, arming with the code', async (t) => {
@@ -246,9 +293,9 @@ test('Honeywell: keypad updates, zone bitfield, arming with the code', async (t)
   assert.equal(ctx.state(partition(1).feature('ready')), 0);
   assert.equal(ctx.state(partition(2).feature('ready')), 1);
   assert.equal(ctx.state(panel.feature('ac-power')), 1);
-  assert.equal(ctx.state(zone(1).feature('state')), 0, 'open from the bitfield');
-  assert.equal(ctx.state(zone(2).feature('state')), 0);
-  assert.equal(ctx.state(zone(5).feature('state')), 0, 'open from the keypad');
+  assert.equal(ctx.state(zone(1).feature('opening')), 0, 'open from the bitfield');
+  assert.equal(ctx.state(zone(2).feature('opening')), 0);
+  assert.equal(ctx.state(zone(5).feature('opening')), 0, 'open from the keypad');
   const ack = await gladys.fake.sceneAction('arm', { partition: '2', mode: 'armed_night' });
   assert.equal(ack.success, true, ack.error);
   await settle();
@@ -257,7 +304,7 @@ test('Honeywell: keypad updates, zone bitfield, arming with the code', async (t)
   // Ready: the keypad fault of partition 1 is cleared.
   server.honeywell('%00,01,1008,000,00,****DISARMED****  Ready to Arm  $');
   await settle();
-  assert.equal(ctx.state(zone(5).feature('state')), 1);
+  assert.equal(ctx.state(zone(5).feature('opening')), 1);
 });
 
 test('Honeywell arming without a code is refused with a message', async (t) => {

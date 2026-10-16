@@ -11,7 +11,7 @@
 // -----------------------------------------------------------------------------
 
 import { DEVICE_TRANSPORTS, createLogger } from '@gladysassistant/integration-sdk';
-import { normalizeConfig, sessionKey } from './config.js';
+import { codeFits, normalizeConfig, sessionKey } from './config.js';
 import { ARM_MODES, MODES, PANIC_KINDS, SCENE_TRIGGERS, TIMINGS } from './constants.js';
 import { buildDevices, buildStates, ids, parseFeatureId, zoneList } from './devices.js';
 import { COMMAND_NAMES, T, fill, word } from './i18n.js';
@@ -95,7 +95,7 @@ export class EnvisalinkApp {
       this.logger.warn(`Zones not understood in the configuration: ${next.zoneErrors.join(', ')}`);
     }
     if (next.codeInvalid) {
-      this.logger.warn('The user code of the configuration is not 4 to 8 digits: ignored');
+      this.logger.warn('The user code of the configuration is not 4 or 6 digits: ignored');
     }
     await this.publishDevices();
     await this.publishStates();
@@ -122,6 +122,10 @@ export class EnvisalinkApp {
       this.timers.clearInterval(this.sweeper);
       this.sweeper = undefined;
     }
+    if (this.discoveryTimer) {
+      this.timers.clearTimeout(this.discoveryTimer);
+      this.discoveryTimer = undefined;
+    }
   }
 
   configProblem() {
@@ -146,7 +150,7 @@ export class EnvisalinkApp {
       const [connected, message] = JSON.parse(status);
       await this.setStatus(connected, message ?? undefined);
     }
-    this.gladys.forgetPublishedStates?.();
+    this.publisher.forget();
     await this.publishDevices();
     await this.publishStates();
   }
@@ -197,7 +201,7 @@ export class EnvisalinkApp {
     await this.publishTransports(DEVICE_TRANSPORTS.LOCAL);
   }
 
-  async onDown({ reason, retryIn, refused, stopped }) {
+  async onDown({ reason, retryIn, refused, stopped, contended }) {
     this.online = false;
     const seconds = Math.round((retryIn ?? 0) / 1000);
     if (stopped) {
@@ -205,6 +209,11 @@ export class EnvisalinkApp {
       await this.setStatus(false, T.stopped);
     } else if (refused) {
       await this.setStatus(false, fill(T.refused, seconds));
+    } else if (contended) {
+      this.logger.warn(
+        `Envisalink: sessions dropped right after their login several times (another TPI client?); next try in ${seconds} s`,
+      );
+      await this.setStatus(false, fill(T.contended, seconds));
     } else {
       this.logger.warn(`Envisalink: ${reason}; next try in ${seconds} s`);
       await this.setStatus(false, fill(T.unreachable, reason, seconds));
@@ -219,14 +228,22 @@ export class EnvisalinkApp {
       this.logger.warn(
         `Envisalink: ${text}${event.partition ? ` (partition ${event.partition})` : ''}`,
       );
+      if (Number.isInteger(event.partition) && event.partition <= this.config.partitions) {
+        // A failed arm or a refused code: the dashboard shows what was asked, send the real mode.
+        this.publisher.forget(ids.partition(this.gladys, event.partition).feature('mode'));
+        await this.publishStates();
+      }
       return;
     }
     const zonesBefore = zoneList(this.config, this.state).length;
     const summary = JSON.stringify(this.partitionsSummary());
-    const { state, effects } = applyEvent(this.state, event, { at: this.now() });
+    const { state, effects } = applyEvent(this.state, event, {
+      at: this.now(),
+      zoneType: (number) => this.zoneType(number),
+    });
     this.state = state;
     if (zoneList(this.config, this.state).length !== zonesBefore) {
-      await this.publishDevices();
+      this.devicesSoon();
     }
     await this.publishStates();
     for (const effect of effects) {
@@ -279,13 +296,30 @@ export class EnvisalinkApp {
     }
   }
 
+  /**
+   * The kind of a zone the user configured; undefined for a zone added by the
+   * panel (shown as an opening, but its real kind is unknown).
+   */
+  zoneType(number) {
+    return this.config.zones.find((zone) => zone.zone === number)?.type;
+  }
+
+  /** Expires the Honeywell keypad values; also sends the heartbeats that are due. */
   async sweep() {
-    if (this.panelType !== 'honeywell') return;
-    const { state, changed } = expireKeypadFaults(this.state, { at: this.now() });
-    if (changed) {
-      this.state = state;
-      await this.publishStates();
+    if (this.panelType === 'honeywell') {
+      const { state, changed } = expireKeypadFaults(this.state, { at: this.now() });
+      if (changed) this.state = state;
     }
+    await this.publishStates();
+  }
+
+  /** New zones come in bursts (a DSC status dump): one device list for the burst. */
+  devicesSoon() {
+    if (this.discoveryTimer) return;
+    this.discoveryTimer = this.timers.setTimeout(() => {
+      this.discoveryTimer = undefined;
+      this.guard(() => this.publishDevices());
+    }, TIMINGS.discoveryDebounce);
   }
 
   // --- Gladys ----------------------------------------------------------------
@@ -327,9 +361,21 @@ export class EnvisalinkApp {
     await this.publishDevices({ force: true });
   }
 
-  /** The user created or updated a device: the SDK forgot its states, send them again. */
-  async deviceChanged() {
+  /** The user created or updated a device: Gladys has none of its states yet, send them again. */
+  async deviceChanged(device) {
+    this.publisher.forget(device?.external_id);
     await this.publishStates();
+  }
+
+  /** The user code, if it suits the panel; else the reason as an error. */
+  codeFor() {
+    if (!this.config.code) {
+      throw this.error(this.config.codeInvalid ? T.badCode : T.noCode);
+    }
+    if (!codeFits(this.config.code, this.panelType)) {
+      throw this.error(T.badCodeHoneywell);
+    }
+    return this.config.code;
   }
 
   // --- Commands --------------------------------------------------------------
@@ -369,8 +415,7 @@ export class EnvisalinkApp {
         : await this.arm(target.number, mode);
     } catch (err) {
       // The dashboard shows what was asked: send the real mode again.
-      const id = ids.partition(this.gladys, target.number).feature('mode');
-      this.gladys.forgetPublishedStates?.(id);
+      this.publisher.forget(ids.partition(this.gladys, target.number).feature('mode'));
       await this.publishStates();
       throw err;
     }
@@ -389,13 +434,15 @@ export class EnvisalinkApp {
     const current = this.state.partitions[partition]?.mode;
     if (current === mode) {
       this.logger.info(`Partition ${partition} already ${mode}: nothing sent`);
-      return fill(T.sent, word(fill(COMMAND_NAMES.arm, mode, partition), this.language));
+      return fill(T.nothingSent, word(fill(COMMAND_NAMES.arm, mode, partition), this.language));
     }
     if (current && current !== 'disarmed') {
       throw this.error(T.alreadyArmed);
     }
+    // DSC arms without a code (or answers its 900 with it); Honeywell always needs one.
+    const code = this.panelType === 'dsc' && !this.config.code ? '' : this.codeFor();
     this.logger.info(`ARMING from Gladys: ${what}`);
-    this.send(() => this.client.arm(partition, mode, this.config.code));
+    this.send(() => this.client.arm(partition, mode, code));
     this.commanded.set(partition, { mode, until: this.now() + TIMINGS.commandMemory });
     return fill(T.sent, word(fill(COMMAND_NAMES.arm, mode, partition), this.language));
   }
@@ -409,11 +456,9 @@ export class EnvisalinkApp {
       );
       throw new Refused(word(T.disarmRefused, this.language));
     }
-    if (!this.config.code) {
-      throw this.error(this.config.codeInvalid ? T.badCode : T.noCode);
-    }
+    const code = this.codeFor();
     this.logger.info(`DISARMING from Gladys: ${what}`);
-    this.send(() => this.client.disarm(partition, this.config.code));
+    this.send(() => this.client.disarm(partition, code));
     this.commanded.set(partition, { mode: 'disarmed', until: this.now() + TIMINGS.commandMemory });
     return fill(T.sent, word(fill(COMMAND_NAMES.disarm, partition), this.language));
   }

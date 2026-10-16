@@ -129,33 +129,29 @@ export function decode({ command, data }) {
       return [{ type: 'zone', zone: zone(data.slice(0, 3)), open: true }];
     case '610':
       return [{ type: 'zone', zone: zone(data.slice(0, 3)), open: false }];
+    // The keypad keys carry no partition: the keypads of partition 1 send them
+    // in most homes, so they are credited to it (a scene filter on 1 matches).
     case '620':
-      return [{ type: 'panic', kind: 'duress', active: true }];
+      return [{ type: 'panic', kind: 'duress', active: true, partition: 1 }];
     case '621':
-      return [{ type: 'panic', kind: 'fire', active: true }];
+      return [{ type: 'panic', kind: 'fire', active: true, partition: 1 }];
     case '622':
-      return [{ type: 'panic', kind: 'fire', active: false }];
+      return [{ type: 'panic', kind: 'fire', active: false, partition: 1 }];
     case '623':
-      return [{ type: 'panic', kind: 'medical', active: true }];
+      return [{ type: 'panic', kind: 'medical', active: true, partition: 1 }];
     case '624':
-      return [{ type: 'panic', kind: 'medical', active: false }];
+      return [{ type: 'panic', kind: 'medical', active: false, partition: 1 }];
     case '625':
-      return [{ type: 'panic', kind: 'panic', active: true }];
+      return [{ type: 'panic', kind: 'panic', active: true, partition: 1 }];
     case '626':
-      return [{ type: 'panic', kind: 'panic', active: false }];
+      return [{ type: 'panic', kind: 'panic', active: false, partition: 1 }];
     case '510': {
-      // Keypad LEDs of partition 1: bit 0 Ready, bit 1 Armed.
+      // Keypad LEDs of partition 1, bit 0 Ready. Only the ready flag is taken:
+      // the Armed LED also lights during the exit delay and blinks in some
+      // states, the mode comes from 650 / 652 / 653 / 655 only.
       const leds = Number.parseInt(data.slice(0, 2), 16);
       if (!Number.isFinite(leds)) return [];
-      const armed = (leds & 0x02) !== 0;
-      return [
-        {
-          type: 'partition',
-          partition: 1,
-          ready: (leds & 0x01) !== 0,
-          ...(armed ? {} : { mode: 'disarmed' }),
-        },
-      ];
+      return [{ type: 'partition', partition: 1, ready: (leds & 0x01) !== 0 }];
     }
     case '650':
     case '653':

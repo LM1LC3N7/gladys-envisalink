@@ -19,12 +19,12 @@
       "label": { "en": "Your Envisalink module", "fr": "Votre module Envisalink" },
       "description": {
         "en": "For DSC PowerSeries and Honeywell / Ademco Vista alarm panels fitted with an Envisalink EVL-3 or EVL-4 module, on your network, without the EyezOn cloud: the state of each partition (disarmed, armed away, stay or night, in alarm, ready), the zones (open or closed, alarm, tamper, fault), the system troubles (mains, battery, tamper), panic alarms, arming from Gladys and scene triggers. The module accepts one local connection (TPI, TCP port 4025) at a time: stop any other software using it (Home Assistant, another Gladys). Unofficial, not affiliated with EyezOn, DSC or Honeywell.",
-        "fr": "Pour les centrales d'alarme DSC PowerSeries et Honeywell / Ademco Vista Ã©quipÃ©es d'un module Envisalink EVL-3 ou EVL-4, sur votre rÃ©seau, sans le cloud EyezOn : l'Ã©tat de chaque partition (dÃ©sarmÃ©e, armÃ©e absent, prÃ©sent ou nuit, en alarme, prÃªte), les zones (ouvertes ou fermÃ©es, alarme, autoprotection, dÃ©faut), les dÃ©fauts systÃ¨me (secteur, batterie, autoprotection), les alarmes panique, l'armement depuis Gladys et des dÃ©clencheurs de scÃ¨ne. Le module n'accepte qu'une connexion locale (TPI, port TCP 4025) Ã  la fois : arrÃªtez tout autre logiciel qui l'utilise (Home Assistant, un autre Gladys). Non officiel, sans lien avec EyezOn, DSC ou Honeywell."
+        "fr": "Pour les centrales d'alarme DSC PowerSeries et Honeywell / Ademco Vista équipées d'un module Envisalink EVL-3 ou EVL-4, sur votre réseau, sans le cloud EyezOn : l'état de chaque partition (désarmée, armée absent, présent ou nuit, en alarme, prête), les zones (ouvertes ou fermées, alarme, autoprotection, défaut), les défauts système (secteur, batterie, autoprotection), les alarmes panique, l'armement depuis Gladys et des déclencheurs de scène. Le module n'accepte qu'une connexion locale (TPI, port TCP 4025) à la fois : arrêtez tout autre logiciel qui l'utilise (Home Assistant, un autre Gladys). Non officiel, sans lien avec EyezOn, DSC ou Honeywell."
       },
       "links": [
         {
           "url": "https://github.com/LM1LC3N7/gladys-envisalink/blob/main/docs/fr.md",
-          "label": { "en": "Guide (French)", "fr": "Guide (franÃ§ais)" }
+          "label": { "en": "Guide (French)", "fr": "Guide (français)" }
         },
         {
           "url": "https://github.com/LM1LC3N7/gladys-envisalink/blob/main/docs/en.md",
@@ -38,7 +38,7 @@
       "label": { "en": "Address of the Envisalink", "fr": "Adresse de l'Envisalink" },
       "description": {
         "en": "Its IP address or name on your network (give it a fixed address in your router).",
-        "fr": "Son adresse IP ou son nom sur votre rÃ©seau (donnez-lui une adresse fixe dans votre box)."
+        "fr": "Son adresse IP ou son nom sur votre réseau (donnez-lui une adresse fixe dans votre box)."
       },
       "placeholder": { "en": "192.168.1.40", "fr": "192.168.1.40" },
       "required": true
@@ -49,7 +49,7 @@
       "label": { "en": "TPI port", "fr": "Port TPI" },
       "description": {
         "en": "4025 unless you changed it.",
-        "fr": "4025, sauf si vous l'avez changÃ©."
+        "fr": "4025, sauf si vous l'avez changé."
       },
       "required": false,
       "default": 4025,
@@ -62,7 +62,7 @@
       "label": { "en": "Envisalink password", "fr": "Mot de passe de l'Envisalink" },
       "description": {
         "en": "The password of the module's local web page (\"user\" by default), not your EyezOn account.",
-        "fr": "Le mot de passe de la page web locale du module (Â« user Â» par dÃ©faut), pas celui de votre compte EyezOn."
+        "fr": "Le mot de passe de la page web locale du module (« user » par défaut), pas celui de votre compte EyezOn."
       },
       "required": true
     },
@@ -72,7 +72,7 @@
       "label": { "en": "Alarm panel", "fr": "Centrale d'alarme" },
       "description": {
         "en": "Found by itself from the first message of the module. Choose it only when the detection fails.",
-        "fr": "TrouvÃ©e toute seule d'aprÃ¨s le premier message du module. Ã€ choisir seulement si la dÃ©tection Ã©choue."
+        "fr": "Trouvée toute seule d'après le premier message du module. À choisir seulement si la détection échoue."
       },
       "required": false,
       "default": "auto",
@@ -91,7 +91,7 @@
       "label": { "en": "Number of partitions", "fr": "Nombre de partitions" },
       "description": {
         "en": "Partitions 1 to N become devices in Gladys (1 for most homes).",
-        "fr": "Les partitions 1 Ã  N deviennent des appareils dans Gladys (1 dans la plupart des maisons)."
+        "fr": "Les partitions 1 à N deviennent des appareils dans Gladys (1 dans la plupart des maisons)."
       },
       "required": false,
       "default": 1,
@@ -104,21 +104,21 @@
       "label": { "en": "Zones", "fr": "Zones" },
       "description": {
         "en": "Optional: the zones to show from the start, with a name and a kind (opening, motion, smoke, leak), e.g. \"1=Front door, 2=Hall:motion, 5=Kitchen:smoke, 10-12\". Zones the panel reports are added by themselves as openings.",
-        "fr": "Facultatif : les zones Ã  afficher dÃ¨s le dÃ©part, avec un nom et un type (opening ouverture, motion mouvement, smoke fumÃ©e, leak fuite), par ex. Â« 1=Porte d'entrÃ©e, 2=Couloir:motion, 5=Cuisine:smoke, 10-12 Â». Les zones signalÃ©es par la centrale s'ajoutent seules, comme ouvertures."
+        "fr": "Facultatif : les zones à afficher dès le départ, avec un nom et un type (opening ouverture, motion mouvement, smoke fumée, leak fuite), par ex. « 1=Porte d'entrée, 2=Couloir:motion, 5=Cuisine:smoke, 10-12 ». Les zones signalées par la centrale s'ajoutent seules, comme ouvertures."
       },
       "placeholder": {
         "en": "1=Front door, 2=Hall:motion",
-        "fr": "1=Porte d'entrÃ©e, 2=Couloir:motion"
+        "fr": "1=Porte d'entrée, 2=Couloir:motion"
       },
       "required": false
     },
     {
       "key": "safety",
       "type": "section",
-      "label": { "en": "Safety", "fr": "SÃ©curitÃ©" },
+      "label": { "en": "Safety", "fr": "Sécurité" },
       "description": {
         "en": "Anyone who can control the devices in Gladys (dashboard, scenes, the Gladys app) can use the alarm through this integration. Arming is allowed by default. Disarming and panic alarms are off by default: allow them only if your Gladys is well protected. Every command is written in the integration logs; the user code never is.",
-        "fr": "Toute personne pouvant piloter les appareils dans Gladys (tableau de bord, scÃ¨nes, application Gladys) peut agir sur l'alarme par cette intÃ©gration. L'armement est permis par dÃ©faut. Le dÃ©sarmement et les alarmes panique sont dÃ©sactivÃ©s par dÃ©faut : ne les autorisez que si votre Gladys est bien protÃ©gÃ©. Chaque commande est Ã©crite dans les journaux de l'intÃ©gration, jamais le code utilisateur."
+        "fr": "Toute personne pouvant piloter les appareils dans Gladys (tableau de bord, scènes, application Gladys) peut agir sur l'alarme par cette intégration. L'armement est permis par défaut. Le désarmement et les alarmes panique sont désactivés par défaut : ne les autorisez que si votre Gladys est bien protégé. Chaque commande est écrite dans les journaux de l'intégration, jamais le code utilisateur."
       }
     },
     {
@@ -126,8 +126,8 @@
       "type": "secret",
       "label": { "en": "User code of the alarm", "fr": "Code utilisateur de l'alarme" },
       "description": {
-        "en": "The code you type on the keypad (4 to 8 digits). Needed to disarm, and to arm a Honeywell panel or a DSC panel without quick arming. A dedicated user code is best: the panel logs it with each command.",
-        "fr": "Le code que vous tapez sur le clavier (4 Ã  8 chiffres). NÃ©cessaire pour dÃ©sarmer, et pour armer une centrale Honeywell ou une DSC sans armement rapide. Le mieux est un code utilisateur dÃ©diÃ© : la centrale le journalise avec chaque commande."
+        "en": "The code you type on the keypad (DSC: 4 or 6 digits, Honeywell: 4 digits). Needed to disarm, and to arm a Honeywell panel or a DSC panel without quick arming. A dedicated user code is best: the panel logs it with each command.",
+        "fr": "Le code que vous tapez sur le clavier (DSC : 4 ou 6 chiffres, Honeywell : 4 chiffres). Nécessaire pour désarmer, et pour armer une centrale Honeywell ou une DSC sans armement rapide. Le mieux est un code utilisateur dédié : la centrale le journalise avec chaque commande."
       },
       "required": false
     },
@@ -143,11 +143,11 @@
       "type": "boolean",
       "label": {
         "en": "Allow disarming from Gladys",
-        "fr": "Autoriser le dÃ©sarmement depuis Gladys"
+        "fr": "Autoriser le désarmement depuis Gladys"
       },
       "description": {
         "en": "Needs the user code. Disarming also silences an alarm in progress.",
-        "fr": "NÃ©cessite le code utilisateur. DÃ©sarmer coupe aussi une alarme en cours."
+        "fr": "Nécessite le code utilisateur. Désarmer coupe aussi une alarme en cours."
       },
       "required": false,
       "default": false
@@ -160,8 +160,8 @@
         "fr": "Autoriser les alarmes panique depuis Gladys"
       },
       "description": {
-        "en": "The \"Envisalink panic alarm\" scene action: fire, medical or police, reported to your monitoring station if you have one.",
-        "fr": "L'action de scÃ¨ne Â« Alarme panique Envisalink Â» : incendie, mÃ©dicale ou police, transmise Ã  votre tÃ©lÃ©surveillance si vous en avez une."
+        "en": "The \"Envisalink panic alarm\" scene action: fire, medical or police, reported to your monitoring station if you have one (a false alarm can bring a patrol). Experimental on Honeywell: the A / B / C keys depend on the panel programming.",
+        "fr": "L'action de scène « Alarme panique Envisalink » : incendie, médicale ou police, transmise à votre télésurveillance si vous en avez une (une fausse alarme peut déclencher une intervention). Expérimental sur Honeywell : les touches A / B / C dépendent de la programmation de la centrale."
       },
       "required": false,
       "default": false
@@ -172,12 +172,12 @@
       "label": { "en": "Language of the device names", "fr": "Langue des noms des appareils" },
       "description": {
         "en": "Used for the names of the devices, features and modes added from now on.",
-        "fr": "Sert aux noms des appareils, fonctionnalitÃ©s et modes ajoutÃ©s dÃ©sormais."
+        "fr": "Sert aux noms des appareils, fonctionnalités et modes ajoutés désormais."
       },
       "required": false,
       "default": "fr",
       "options": [
-        { "value": "fr", "label": { "en": "French", "fr": "FranÃ§ais" } },
+        { "value": "fr", "label": { "en": "French", "fr": "Français" } },
         { "value": "en", "label": { "en": "English", "fr": "Anglais" } }
       ]
     }
@@ -192,10 +192,10 @@
   "scene_triggers": [
     {
       "key": "alarm_triggered",
-      "label": { "en": "Envisalink alarm triggered", "fr": "Alarme Envisalink dÃ©clenchÃ©e" },
+      "label": { "en": "Envisalink alarm triggered", "fr": "Alarme Envisalink déclenchée" },
       "description": {
         "en": "A partition goes into alarm, or a fire, medical, panic or duress alarm starts.",
-        "fr": "Une partition passe en alarme, ou une alarme incendie, mÃ©dicale, panique ou contrainte commence."
+        "fr": "Une partition passe en alarme, ou une alarme incendie, médicale, panique ou contrainte commence."
       },
       "fields": [
         {
@@ -218,9 +218,17 @@
           "type": "multi_select",
           "label": { "en": "Kind of alarm", "fr": "Type d'alarme" },
           "options": [
+            {
+              "value": "partition",
+              "label": {
+                "en": "Partition in alarm, cause unknown",
+                "fr": "Partition en alarme, cause inconnue"
+              }
+            },
             { "value": "intrusion", "label": { "en": "Intrusion", "fr": "Intrusion" } },
             { "value": "fire", "label": { "en": "Fire", "fr": "Incendie" } },
-            { "value": "medical", "label": { "en": "Medical", "fr": "MÃ©dicale" } },
+            { "value": "leak", "label": { "en": "Water leak", "fr": "Fuite d'eau" } },
+            { "value": "medical", "label": { "en": "Medical", "fr": "Médicale" } },
             { "value": "panic", "label": { "en": "Panic", "fr": "Panique" } },
             { "value": "duress", "label": { "en": "Duress", "fr": "Contrainte" } }
           ]
@@ -242,10 +250,10 @@
     },
     {
       "key": "armed",
-      "label": { "en": "Envisalink partition armed", "fr": "Partition Envisalink armÃ©e" },
+      "label": { "en": "Envisalink partition armed", "fr": "Partition Envisalink armée" },
       "description": {
         "en": "A partition was armed (from Gladys, a keypad, a key fob or the EyezOn app).",
-        "fr": "Une partition a Ã©tÃ© armÃ©e (depuis Gladys, un clavier, une tÃ©lÃ©commande ou l'application EyezOn)."
+        "fr": "Une partition a été armée (depuis Gladys, un clavier, une télécommande ou l'application EyezOn)."
       },
       "fields": [
         {
@@ -268,9 +276,9 @@
           "type": "select",
           "label": { "en": "Mode", "fr": "Mode" },
           "options": [
-            { "value": "armed_away", "label": { "en": "Armed away", "fr": "ArmÃ©e (absent)" } },
-            { "value": "armed_stay", "label": { "en": "Armed stay", "fr": "ArmÃ©e (prÃ©sent)" } },
-            { "value": "armed_night", "label": { "en": "Armed night", "fr": "ArmÃ©e (nuit)" } }
+            { "value": "armed_away", "label": { "en": "Armed away", "fr": "Armée (absent)" } },
+            { "value": "armed_stay", "label": { "en": "Armed stay", "fr": "Armée (présent)" } },
+            { "value": "armed_night", "label": { "en": "Armed night", "fr": "Armée (nuit)" } }
           ]
         }
       ],
@@ -280,21 +288,21 @@
         {
           "key": "user",
           "type": "number",
-          "label": { "en": "User number", "fr": "NumÃ©ro d'utilisateur" }
+          "label": { "en": "User number", "fr": "Numéro d'utilisateur" }
         },
         {
           "key": "by_gladys",
           "type": "boolean",
-          "label": { "en": "Asked by Gladys", "fr": "DemandÃ© par Gladys" }
+          "label": { "en": "Asked by Gladys", "fr": "Demandé par Gladys" }
         }
       ]
     },
     {
       "key": "disarmed",
-      "label": { "en": "Envisalink partition disarmed", "fr": "Partition Envisalink dÃ©sarmÃ©e" },
+      "label": { "en": "Envisalink partition disarmed", "fr": "Partition Envisalink désarmée" },
       "description": {
         "en": "A partition was disarmed (from Gladys, a keypad, a key fob or the EyezOn app).",
-        "fr": "Une partition a Ã©tÃ© dÃ©sarmÃ©e (depuis Gladys, un clavier, une tÃ©lÃ©commande ou l'application EyezOn)."
+        "fr": "Une partition a été désarmée (depuis Gladys, un clavier, une télécommande ou l'application EyezOn)."
       },
       "fields": [
         {
@@ -318,12 +326,12 @@
         {
           "key": "user",
           "type": "number",
-          "label": { "en": "User number", "fr": "NumÃ©ro d'utilisateur" }
+          "label": { "en": "User number", "fr": "Numéro d'utilisateur" }
         },
         {
           "key": "by_gladys",
           "type": "boolean",
-          "label": { "en": "Asked by Gladys", "fr": "DemandÃ© par Gladys" }
+          "label": { "en": "Asked by Gladys", "fr": "Demandé par Gladys" }
         }
       ]
     }
@@ -334,7 +342,7 @@
       "label": { "en": "Arm the Envisalink alarm", "fr": "Armer l'alarme Envisalink" },
       "description": {
         "en": "Arms a partition (if arming from Gladys is allowed).",
-        "fr": "Arme une partition (si l'armement depuis Gladys est autorisÃ©)."
+        "fr": "Arme une partition (si l'armement depuis Gladys est autorisé)."
       },
       "timeout_seconds": 15,
       "fields": [
@@ -362,19 +370,19 @@
           "required": false,
           "default": "armed_away",
           "options": [
-            { "value": "armed_away", "label": { "en": "Armed away", "fr": "ArmÃ©e (absent)" } },
-            { "value": "armed_stay", "label": { "en": "Armed stay", "fr": "ArmÃ©e (prÃ©sent)" } },
-            { "value": "armed_night", "label": { "en": "Armed night", "fr": "ArmÃ©e (nuit)" } }
+            { "value": "armed_away", "label": { "en": "Armed away", "fr": "Armée (absent)" } },
+            { "value": "armed_stay", "label": { "en": "Armed stay", "fr": "Armée (présent)" } },
+            { "value": "armed_night", "label": { "en": "Armed night", "fr": "Armée (nuit)" } }
           ]
         }
       ]
     },
     {
       "key": "disarm",
-      "label": { "en": "Disarm the Envisalink alarm", "fr": "DÃ©sarmer l'alarme Envisalink" },
+      "label": { "en": "Disarm the Envisalink alarm", "fr": "Désarmer l'alarme Envisalink" },
       "description": {
         "en": "Disarms a partition: off unless allowed in the configuration, needs the user code.",
-        "fr": "DÃ©sarme une partition : dÃ©sactivÃ© sauf autorisation dans la configuration, nÃ©cessite le code utilisateur."
+        "fr": "Désarme une partition : désactivé sauf autorisation dans la configuration, nécessite le code utilisateur."
       },
       "timeout_seconds": 15,
       "fields": [
@@ -402,7 +410,7 @@
       "label": { "en": "Envisalink panic alarm", "fr": "Alarme panique Envisalink" },
       "description": {
         "en": "Raises a panic alarm on the panel: off unless allowed in the configuration.",
-        "fr": "DÃ©clenche une alarme panique sur la centrale : dÃ©sactivÃ© sauf autorisation dans la configuration."
+        "fr": "Déclenche une alarme panique sur la centrale : désactivé sauf autorisation dans la configuration."
       },
       "timeout_seconds": 15,
       "fields": [
@@ -413,7 +421,7 @@
           "required": true,
           "options": [
             { "value": "fire", "label": { "en": "Fire", "fr": "Incendie" } },
-            { "value": "medical", "label": { "en": "Medical", "fr": "MÃ©dicale" } },
+            { "value": "medical", "label": { "en": "Medical", "fr": "Médicale" } },
             { "value": "police", "label": { "en": "Police", "fr": "Police" } }
           ]
         }

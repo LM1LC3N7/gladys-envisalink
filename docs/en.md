@@ -5,6 +5,13 @@ Vista** alarm panel fitted with an **Envisalink EVL-3 or EVL-4** module to
 Gladys, locally, through the module's TPI interface (TCP port 4025), without
 the EyezOn cloud. Unofficial, not affiliated with EyezOn, DSC or Honeywell.
 
+> **Never tested on a real module.** This version was written from the
+> EyezOn TPI documentation and the pyenvisalink library, and tested only
+> against a simulated module. Try it first with the panel disarmed, watching
+> the logs, and report what differs in the
+> [GitHub issues](https://github.com/LM1LC3N7/gladys-envisalink/issues). Do
+> not rely on it as your only intrusion or fire alert.
+
 ## What you get
 
 - **One device per partition**, "Alarm partition N": the **mode** (disarmed,
@@ -14,10 +21,12 @@ the EyezOn cloud. Unofficial, not affiliated with EyezOn, DSC or Honeywell.
   depending on the chosen kind), **alarm**, **tamper**, **fault**.
 - **The panel**: Envisalink connected, mains power, low battery, tamper,
   system trouble, panic alarm.
-- **Scene triggers**: "Envisalink alarm triggered" (intrusion, fire,
-  medical, panic, duress), "Envisalink partition armed" (with the mode, the
-  user number when known, and whether Gladys asked for it), "Envisalink
-  partition disarmed".
+- **Scene triggers**: "Envisalink alarm triggered" (with its kind:
+  intrusion or water leak from the kind of the zone in alarm, fire, medical,
+  panic, duress, or "partition in alarm, cause unknown" when the zone is not
+  configured), "Envisalink partition armed" (with the mode, the user number
+  when known, and whether Gladys asked for it), "Envisalink partition
+  disarmed".
 - **Scene actions**: arm, disarm (if allowed), panic alarm (if allowed).
 
 ## Before you start
@@ -28,7 +37,8 @@ the EyezOn cloud. Unofficial, not affiliated with EyezOn, DSC or Honeywell.
    It is not your EyezOn account password.
 3. **One TPI connection at a time**: if Home Assistant, another Gladys or
    another program already uses the module, stop it, or both will keep
-   kicking each other out.
+   kicking each other out. Sharing the module between programs needs a relay
+   such as envisalink-proxy.
 
 ## Configuration
 
@@ -44,6 +54,8 @@ the EyezOn cloud. Unofficial, not affiliated with EyezOn, DSC or Honeywell.
    `1=Front door, 2=Hall:motion, 5=Kitchen:smoke, 6=Laundry:leak, 10-12`.
    Kinds: `opening` (default), `motion`, `smoke`, `leak`. A zone the panel
    reports that is not in the list is added by itself, as an opening.
+   Changing the kind of a zone creates a new feature: add it again from the
+   Discovery tab.
 7. Save, then add the devices from the **Discovery** tab.
 
 The **Test the connection** button reconnects at once, asks the panel for its
@@ -56,11 +68,22 @@ full status (DSC) and shows the mode of each partition.
   Gladys is well protected: anyone who can control your devices will be able
   to disarm the alarm.
 - **Panic alarms** from Gladys are off by default.
-- **User code**: needed to disarm, and to arm a Honeywell panel or a DSC
-  panel without "quick arm". A dedicated code is best. It is never written in
-  the logs, nor is the password. Every command (sent or refused) is logged.
+- **User code**: DSC 4 or 6 digits, Honeywell 4 digits. Needed to disarm,
+  and to arm a Honeywell panel or a DSC panel without "quick arm". A
+  dedicated code is best. It is never written in the logs, nor is the
+  password. Every command (sent or refused) is logged.
 - A DSC panel asking for a code while arming (message 900) only gets it
-  within 20 seconds of a Gladys command.
+  within 20 seconds of a Gladys command, and only for the partition armed.
+
+### Beware of false alarms
+
+- **Night mode arms without entry delay**: opening the door sets the alarm
+  off at once, with no time to type the code. Arm it from a scene only when
+  nobody is due to come in.
+- **If your panel reports to a monitoring station**, an alarm set off by a
+  badly tuned scene, or a panic alarm sent from Gladys, is reported like a
+  real one: warn your monitoring company before testing, or put the panel in
+  test mode.
 
 ## Modes
 
@@ -76,19 +99,35 @@ To go from one armed mode to another, disarm first.
 ## Known limits
 
 - Honeywell: the panel reports zones only through the virtual keypad display
-  and a bitfield that is not always sent. A zone shown "FAULT" on the keypad
-  is closed again when the keypad has not shown it for 45 s, or as soon as
-  the partition is "ready".
+  and a bitfield that is not always sent. A zone shown "FAULT", "CHECK" or
+  "ALARM" on the keypad goes back to normal when the keypad has not shown it
+  for 45 s, or as soon as the partition is "ready" (except the alarm, cleared
+  by the disarm). An "ALARM" shown by a disarmed keypad (alarm memory) is not
+  an alarm.
+- Honeywell: a partition shows **armed from the start of the exit delay**
+  (the keypad icons light at once), while a DSC panel shows it at the end of
+  the delay. The "Partition armed" trigger therefore fires earlier on
+  Honeywell.
+- Honeywell: **the panic alarm is experimental**: it sends the keypad key A
+  (fire), B (medical) or C (police), whose effect depends on the programming
+  of your panel.
 - The state of a zone shows from its first change (or the panel's first full
   status).
 - The Gladys limits (300 states and 300 events per minute) are respected:
-  over 240 states a minute, the latest values wait for the next minute; over
-  120 scene events a minute, they are dropped and logged.
+  only values that change are sent (plus a reminder about every 30 minutes);
+  over 240 states a minute, the zones wait for the next minute while the
+  panel and the partitions keep their share; over 120 scene events a minute,
+  they are dropped and logged, except "Envisalink alarm triggered", never
+  dropped and sent again up to 3 times on an error.
 
 ## Troubleshooting
 
 - "Envisalink unreachable": check the address, that the module answers (its
   local web page), and that no other program is connected to port 4025.
+- "another client may be using the TPI": the connection drops right after
+  the login several times in a row; the integration then waits 5 minutes
+  between two tries. Stop the other program, or use a relay
+  (envisalink-proxy).
 - "refused the password": after three refusals the connection stops so as
   not to lock the module. Fix the password, then save or click "Test the
   connection".

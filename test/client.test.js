@@ -89,6 +89,7 @@ test('a refused password: retried slowly, stopped after three', async (t) => {
     refused: true,
     stopped: false,
     wasUp: false,
+    contended: false,
   });
   for (let i = 0; i < 2; i += 1) {
     t.mock.timers.tick(TIMINGS.loginRefusedRetry);
@@ -202,7 +203,46 @@ test('commands need a session, Honeywell arming and any disarm need a code', asy
   client.disarm(1, '1234');
   client.panic('fire');
   await settle();
-  assert.deepEqual(server.commands, ['^03,1,12342$', '^03,1,12341$', '^03,1,AAA$']);
+  assert.deepEqual(server.commands, ['^03,1,12342$', '^03,1,12341$', '^03,1,A$']);
+});
+
+test('the code waits for a 900 of the partition armed, and dies with its session', async (t) => {
+  const { server, client } = setup(t);
+  client.start();
+  await settle();
+  client.arm(1, 'armed_away', '4321');
+  server.dsc('900', '24');
+  await settle();
+  assert.equal(server.commands.length, 2, 'partition 2 asks: not sent');
+  client.arm(1, 'armed_away', '4321');
+  server.drop();
+  await settle();
+  assert.equal(client.pendingCode, undefined);
+});
+
+test('lines prefixed with the time are understood', async (t) => {
+  const { server, client, seen } = setup(t, { type: 'honeywell' });
+  client.start();
+  await settle();
+  server.honeywell('12:34:56 %02,0100000000000000$');
+  await settle();
+  assert.equal(seen.events[0].mode, 'disarmed');
+});
+
+test('sessions dropped right after the login, again and again: another client, a longer wait', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'] });
+  const { server, client, seen } = setup(t);
+  client.start();
+  for (let i = 0; i < 3; i += 1) {
+    await settle();
+    assert.equal(client.connected, true);
+    server.drop();
+    await settle();
+    t.mock.timers.tick(seen.down.at(-1).retryIn);
+  }
+  assert.equal(seen.down.at(-1).contended, true);
+  assert.equal(seen.down.at(-1).retryIn, TIMINGS.contendedRetry);
+  assert.equal(seen.down.at(-2).contended, false);
 });
 
 test('a forced panel type skips the detection', async (t) => {

@@ -88,6 +88,12 @@ export const T = {
     en: (seconds) => `The Envisalink refused the password: next try in ${seconds} s.`,
     fr: (seconds) => `L'Envisalink a refusé le mot de passe : nouvel essai dans ${seconds} s.`,
   },
+  contended: {
+    en: (seconds) =>
+      `The Envisalink keeps closing the connection right after the login: another client may be using the TPI (Home Assistant, another Gladys; envisalink-proxy can share it). Next try in ${seconds} s.`,
+    fr: (seconds) =>
+      `L'Envisalink ferme la connexion juste après l'identification, à chaque fois : un autre client utilise peut-être le TPI (Home Assistant, un autre Gladys ; envisalink-proxy permet de le partager). Nouvel essai dans ${seconds} s.`,
+  },
   stopped: {
     en: 'The Envisalink refused the password several times: connection stopped. Fix the password, then save or click "Test the connection".',
     fr: "L'Envisalink a refusé le mot de passe plusieurs fois : connexion arrêtée. Corrigez le mot de passe, puis enregistrez ou cliquez sur « Tester la connexion ».",
@@ -117,8 +123,12 @@ export const T = {
     fr: 'Cette commande demande le code utilisateur de la centrale : saisissez-le dans la configuration.',
   },
   badCode: {
-    en: 'The user code must be 4 to 8 digits.',
-    fr: 'Le code utilisateur doit compter 4 à 8 chiffres.',
+    en: 'The user code must be 4 or 6 digits.',
+    fr: 'Le code utilisateur doit compter 4 ou 6 chiffres.',
+  },
+  badCodeHoneywell: {
+    en: 'A Honeywell panel takes a 4-digit user code.',
+    fr: 'Une centrale Honeywell prend un code utilisateur à 4 chiffres.',
   },
   unknownPartition: {
     en: (n) => `Partition ${n} is not in the configuration.`,
@@ -127,6 +137,10 @@ export const T = {
   sent: {
     en: (what) => `Sent to the panel: ${what}.`,
     fr: (what) => `Envoyé à la centrale : ${what}.`,
+  },
+  nothingSent: {
+    en: (what) => `Already so (${what}): nothing was sent to the panel.`,
+    fr: (what) => `Déjà le cas (${what}) : rien n'a été envoyé à la centrale.`,
   },
   testOk: {
     en: (type, partitions, zones) =>

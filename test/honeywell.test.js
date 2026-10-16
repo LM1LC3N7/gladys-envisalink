@@ -64,6 +64,13 @@ test('keypad update: a faulted zone, an alarm, a trouble', () => {
     alarm: true,
     source: 'keypad',
   });
+  // The memory of a disarmed keypad ("ALARM 12" without the alarm bit) is no alarm.
+  const memory = decode(`%00,01,0008,012,00,${pad('ALARM 12 KITCHEN')}$`);
+  assert.equal(memory.length, 2);
+  // Armed, alarm bit not set yet: taken.
+  assert.equal(decode(`%00,01,000C,012,00,${pad('ALARM 12 KITCHEN')}$`)[2].alarm, true);
+  // A fire alarm says so.
+  assert.equal(decode(`%00,01,0108,003,00,${pad('FIRE 03')}$`)[0].fire, true);
   const check = decode(`%00,02,0208,007,00,${pad('CHECK 07')}$`);
   assert.equal(check[1].trouble, true);
   assert.deepEqual(check[2], {
@@ -78,12 +85,17 @@ test('keypad update: a faulted zone, an alarm, a trouble', () => {
 });
 
 test('zone state change: byte i bit b is zone 8i+b+1', () => {
-  // pyenvisalink example: 16 = zones 2, 3, 5; 01 in the second byte = zone 9.
+  // 16 = zones 2, 3, 5; 01 in the second byte = zone 9 (homebridge-envisalink-ademco order).
   const [{ open }] = decode('%01,1601000000000080$');
   const faulted = open.flatMap((value, i) => (value ? [i + 1] : []));
   assert.deepEqual(faulted, [2, 3, 5, 9, 64]);
   assert.equal(open.length, 64);
+  // 128 zones on the larger panels.
+  const [{ open: wide }] = decode(`%01,${'0'.repeat(30)}80$`);
+  assert.equal(wide.length, 128);
+  assert.equal(wide[127], true);
   assert.deepEqual(decode('%01,12$'), [], 'a short bitfield is ignored');
+  assert.deepEqual(decode(`%01,${'0'.repeat(20)}$`), [], 'not a multiple of 16');
 });
 
 test('partition state change', () => {
@@ -123,6 +135,11 @@ test('Contact ID events', () => {
   assert.deepEqual(decode('%03,138301006$'), [{ type: 'zone', zone: 6, tamper: true }]);
   assert.deepEqual(decode('%03,113701000$'), [{ type: 'system', tamper: true }]);
   assert.deepEqual(decode('%03,199901000$'), []);
+  // Qualifier 6 (still present): a state, no user action; 406 (cancel) is no arm.
+  assert.deepEqual(decode('%03,630200000$'), [{ type: 'system', batteryLow: true }]);
+  assert.deepEqual(decode('%03,640101003$'), []);
+  assert.deepEqual(decode('%03,140601003$'), []);
+  assert.equal(decode('%03,340701002$')[0].action, 'arm', '407 remote arming');
 });
 
 test('commands are keypad sequences', () => {
@@ -132,5 +149,5 @@ test('commands are keypad sequences', () => {
   assert.equal(encode.arm(2, 'armed_stay', '1234'), '^03,2,12343$\r\n');
   assert.equal(encode.arm(1, 'armed_night', '1234'), '^03,1,12347$\r\n');
   assert.equal(encode.disarm(1, '1234'), '^03,1,12341$\r\n');
-  assert.equal(encode.panic('police'), '^03,1,CCC$\r\n');
+  assert.equal(encode.panic('police'), '^03,1,C$\r\n', 'one key, as pyenvisalink');
 });

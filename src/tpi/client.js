@@ -72,6 +72,7 @@ export class EnvisalinkClient extends EventEmitter {
     this.stopped = false;
     this.refusals = 0;
     this.failures = 0;
+    this.shortSessions = 0;
     this.open();
   }
 
@@ -102,6 +103,8 @@ export class EnvisalinkClient extends EventEmitter {
     this.socket = undefined;
     this.loggedIn = false;
     this.buffer = '';
+    // A code waiting for a 900 never outlives its session.
+    this.pendingCode = undefined;
     if (socket) {
       socket.removeAllListeners();
       socket.on('error', () => undefined);
@@ -153,11 +156,20 @@ export class EnvisalinkClient extends EventEmitter {
     this.clearTimers();
     this.close();
     if (!this.running) return;
+    // Logged in, then dropped soon, again and again: another TPI client (Home
+    // Assistant, a second Gladys…) is probably kicking us out, and we it.
+    if (wasUp) {
+      this.shortSessions =
+        this.now() - this.upAt < TIMINGS.shortSession ? (this.shortSessions ?? 0) + 1 : 0;
+    }
+    const contended = (this.shortSessions ?? 0) >= LIMITS.shortSessions;
     let retryIn;
     if (refused) {
       this.refusals += 1;
       this.stopped = this.refusals >= LIMITS.maxLoginRefusals;
       retryIn = this.stopped ? undefined : TIMINGS.loginRefusedRetry;
+    } else if (contended) {
+      retryIn = TIMINGS.contendedRetry;
     } else {
       this.failures = wasUp ? 1 : this.failures + 1;
       retryIn = TIMINGS.backoff[Math.min(this.failures - 1, TIMINGS.backoff.length - 1)];
@@ -168,7 +180,7 @@ export class EnvisalinkClient extends EventEmitter {
         if (this.running) this.open();
       }, retryIn);
     }
-    this.emit('down', { reason, retryIn, refused, stopped: this.stopped, wasUp });
+    this.emit('down', { reason, retryIn, refused, stopped: this.stopped, wasUp, contended });
   }
 
   received(chunk) {
@@ -191,7 +203,9 @@ export class EnvisalinkClient extends EventEmitter {
     }
   }
 
-  line(text) {
+  line(raw) {
+    // The module can prefix its lines with the time (`12:34:56 `, an option of its web page).
+    const text = raw.replace(/^\[?\d{2}:\d{2}:\d{2}\]?\s+/, '');
     if (!this.panelType) {
       if (text === 'Login:') this.panelType = 'honeywell';
       else if (dsc.parseFrame(text)?.command === '505') this.panelType = 'dsc';
@@ -208,6 +222,9 @@ export class EnvisalinkClient extends EventEmitter {
       events = dsc.decode(parsed);
     } else {
       events = honeywell.decode(text);
+      if (events.length === 0) {
+        this.logger.debug(`Envisalink: line not understood: ${text.slice(0, 60)}`);
+      }
     }
     for (const event of events) {
       this.handle(event);
@@ -242,6 +259,7 @@ export class EnvisalinkClient extends EventEmitter {
       this.timers.clearTimeout(this.timer);
       this.timer = undefined;
       this.loggedIn = true;
+      this.upAt = this.now();
       this.failures = 0;
       this.refusals = 0;
       this.ticker = this.timers.setInterval(() => this.tick(generation), TIMINGS.keepAlive);
@@ -293,7 +311,9 @@ export class EnvisalinkClient extends EventEmitter {
     this.ensureUp();
     if (this.panelType === 'dsc') {
       // Answered with the code if the panel asks for it (900), and only then.
-      this.pendingCode = code ? { code, until: this.now() + TIMINGS.codeWindow } : undefined;
+      this.pendingCode = code
+        ? { code, partition, until: this.now() + TIMINGS.codeWindow }
+        : undefined;
       this.write(dsc.encode.arm(partition, mode), `arm ${mode} partition ${partition}`);
       return;
     }
@@ -331,7 +351,9 @@ export class EnvisalinkClient extends EventEmitter {
   codeRequired(partition) {
     const pending = this.pendingCode;
     this.pendingCode = undefined;
-    if (!pending || this.now() > pending.until) {
+    // Only for the partition Gladys just armed (a 900 without partition is accepted).
+    const samePartition = !Number.isInteger(partition) || partition === pending?.partition;
+    if (!pending || this.now() > pending.until || !samePartition) {
       this.logger.warn(
         `Envisalink: the panel asks for a user code (partition ${partition}) but no Gladys command is waiting for one: not sent`,
       );

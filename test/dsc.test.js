@@ -46,9 +46,9 @@ test('partition states', () => {
   assert.equal(events(frame('655', '1').trim())[0].alarm, false);
   assert.equal(events(frame('656', '1').trim())[0].exitDelay, true);
   assert.equal(events(frame('657', '1').trim())[0].entryDelay, true);
-  // 510: keypad LEDs (ready, not armed) -> disarmed.
+  // 510: keypad LEDs: the ready flag only, never the mode.
   assert.deepEqual(events(frame('510', '81').trim()), [
-    { type: 'partition', partition: 1, ready: true, mode: 'disarmed' },
+    { type: 'partition', partition: 1, ready: true },
   ]);
   assert.deepEqual(events(frame('510', '82').trim()), [
     { type: 'partition', partition: 1, ready: false },
@@ -82,8 +82,13 @@ test('system troubles, panic, users, code required', () => {
   assert.deepEqual(events(frame('849', '00').trim()), [
     { type: 'system', trouble: false, ac: true },
   ]);
-  assert.deepEqual(events(frame('625').trim()), [{ type: 'panic', kind: 'panic', active: true }]);
-  assert.deepEqual(events(frame('622').trim()), [{ type: 'panic', kind: 'fire', active: false }]);
+  // Keypad panics: credited to partition 1.
+  assert.deepEqual(events(frame('625').trim()), [
+    { type: 'panic', kind: 'panic', active: true, partition: 1 },
+  ]);
+  assert.deepEqual(events(frame('622').trim()), [
+    { type: 'panic', kind: 'fire', active: false, partition: 1 },
+  ]);
   assert.deepEqual(events(frame('700', '10003').trim()), [
     { type: 'user', partition: 1, action: 'arm', user: 3 },
   ]);

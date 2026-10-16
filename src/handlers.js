@@ -8,8 +8,8 @@ import { ACTIONS, SCENE_ACTIONS } from './constants.js';
 export function registerHandlers(gladys, app, logger) {
   // Discovery: the panel, its partitions and zones.
   gladys.onScanRequest(() => app.scan());
-  gladys.onDeviceCreated(() => app.deviceChanged());
-  gladys.onDeviceUpdated(() => app.deviceChanged());
+  gladys.onDeviceCreated((device) => app.deviceChanged(device));
+  gladys.onDeviceUpdated((device) => app.deviceChanged(device));
 
   // Partition mode (arm, disarm).
   gladys.onSetValue((device, feature, value) => app.setValue(device, feature, value));

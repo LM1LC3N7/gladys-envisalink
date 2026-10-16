@@ -26,6 +26,12 @@ export const emptyState = () => ({
 /** A user event this recent is the author of the arm / disarm that follows or precedes it. */
 const USER_WINDOW = 30_000;
 
+/** The zone values a Honeywell keypad text can set (and that expire). */
+const KEYPAD_KEYS = ['open', 'alarm', 'tamper', 'fault'];
+
+/** The kind of an alarm, from the kind of the zone in alarm. */
+const KIND_OF_ZONE = { opening: 'intrusion', motion: 'intrusion', smoke: 'fire', leak: 'leak' };
+
 const defined = (object) =>
   Object.fromEntries(Object.entries(object).filter(([, value]) => value !== undefined));
 
@@ -39,20 +45,28 @@ function author(next, partition, action, at) {
   return user && user.action === action && at - user.at <= USER_WINDOW ? user.user : null;
 }
 
+const ofPartition = (zone, partition) =>
+  zone.partition === undefined || zone.partition === partition;
+
+function dropEmptyKeypad(zone) {
+  if (zone.keypad && Object.keys(zone.keypad).length === 0) delete zone.keypad;
+}
+
 /**
  * @param {object} state the panel state (not modified)
  * @param {object} event a decoded TPI event
- * @param {{ at: number }} options the time of the event (ms)
+ * @param {{ at: number, zoneType?: (zone: number) => string|undefined }} options the
+ *   time of the event (ms), and the configured kind of a zone (opening, motion, smoke, leak)
  * @returns {{ state: object, effects: object[] }}
  */
-export function applyEvent(state, event, { at }) {
+export function applyEvent(state, event, { at, zoneType = () => undefined }) {
   const next = structuredClone(state);
   const effects = [];
 
   switch (event.type) {
     case 'partition': {
       const before = next.partitions[event.partition] ?? {};
-      const { type: _type, partition: _p, ...values } = event;
+      const { type: _type, partition: _p, fire, ...values } = event;
       const after = { ...before, ...defined(values) };
       next.partitions[event.partition] = after;
       if (before.mode !== undefined && after.mode !== before.mode) {
@@ -76,19 +90,24 @@ export function applyEvent(state, event, { at }) {
       if (after.mode === 'disarmed' && before.mode !== 'disarmed') {
         // A disarm ends the zone alarms of the partition (Honeywell sends no restore).
         for (const zone of Object.values(next.zones)) {
-          if (zone.alarm && (zone.partition === undefined || zone.partition === event.partition)) {
+          if (zone.alarm && ofPartition(zone, event.partition)) {
             zone.alarm = false;
+            if (zone.keypad) delete zone.keypad.alarm;
+            dropEmptyKeypad(zone);
           }
         }
       }
       if (after.alarm === true && before.alarm !== true) {
         const inAlarm = Object.values(next.zones).find(
-          (zone) =>
-            zone.alarm && (zone.partition === undefined || zone.partition === event.partition),
+          (zone) => zone.alarm && ofPartition(zone, event.partition),
         );
+        // Without a zone of a known kind, the cause is unknown: say so.
+        const kind = fire
+          ? 'fire'
+          : (KIND_OF_ZONE[inAlarm ? zoneType(inAlarm.zone) : undefined] ?? 'partition');
         effects.push({
           type: 'alarm',
-          kind: 'intrusion',
+          kind,
           partition: event.partition,
           zone: inAlarm?.zone ?? null,
         });
@@ -98,17 +117,19 @@ export function applyEvent(state, event, { at }) {
     case 'zone': {
       if (!Number.isInteger(event.zone) || event.zone < 1) break;
       const zone = zoneOf(next, event.zone);
-      for (const key of ['open', 'alarm', 'tamper', 'fault']) {
-        if (event[key] !== undefined) zone[key] = event[key];
+      for (const key of KEYPAD_KEYS) {
+        if (event[key] === undefined) continue;
+        zone[key] = event[key];
+        if (event.source === 'keypad') {
+          // Seen on the keypad now: it expires unless the keypad shows it again.
+          zone.keypad = { ...zone.keypad, [key]: at };
+        } else if (zone.keypad) {
+          // The TPI said it: no longer the keypad's to expire.
+          delete zone.keypad[key];
+        }
       }
+      dropEmptyKeypad(zone);
       if (event.partition !== undefined) zone.partition = event.partition;
-      if (event.source === 'keypad') {
-        zone.seen = at;
-        // A zone the keypad showed stays the keypad's until a bitfield confirms it.
-        if (event.open || event.fault) zone.source = 'keypad';
-      } else if (event.open !== undefined) {
-        zone.source = 'tpi';
-      }
       break;
     }
     case 'zones': {
@@ -117,20 +138,22 @@ export function applyEvent(state, event, { at }) {
         if (!open && !next.zones[number]) return;
         const zone = zoneOf(next, number);
         zone.open = open;
-        zone.source = 'tpi';
+        if (zone.keypad) delete zone.keypad.open;
+        dropEmptyKeypad(zone);
       });
       break;
     }
     case 'keypad_clear': {
+      // Ready to arm: nothing of this partition is faulted.
       for (const zone of Object.values(next.zones)) {
-        if (
-          zone.source === 'keypad' &&
-          (zone.partition === undefined || zone.partition === event.partition)
-        ) {
-          zone.open = false;
-          zone.fault = false;
-          delete zone.source;
+        if (!zone.keypad || !ofPartition(zone, event.partition)) continue;
+        for (const key of ['open', 'fault']) {
+          if (zone.keypad[key] !== undefined) {
+            zone[key] = false;
+            delete zone.keypad[key];
+          }
         }
+        dropEmptyKeypad(zone);
       }
       break;
     }
@@ -164,17 +187,23 @@ export function applyEvent(state, event, { at }) {
   return { state: next, effects };
 }
 
-/** Honeywell: the zones the keypad stopped showing are closed again. */
+/**
+ * Honeywell: what the keypad stopped showing for TIMINGS.keypadFaultExpiry
+ * (faults, open zones, zones in alarm, tampers) is over.
+ */
 export function expireKeypadFaults(state, { at }) {
   let changed = false;
   const next = structuredClone(state);
   for (const zone of Object.values(next.zones)) {
-    if (zone.source === 'keypad' && at - (zone.seen ?? 0) > TIMINGS.keypadFaultExpiry) {
-      zone.open = false;
-      zone.fault = false;
-      delete zone.source;
-      changed = true;
+    if (!zone.keypad) continue;
+    for (const [key, seen] of Object.entries(zone.keypad)) {
+      if (at - seen > TIMINGS.keypadFaultExpiry) {
+        zone[key] = false;
+        delete zone.keypad[key];
+        changed = true;
+      }
     }
+    dropEmptyKeypad(zone);
   }
   return { state: next, changed };
 }

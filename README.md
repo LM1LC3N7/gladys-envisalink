@@ -56,14 +56,22 @@ password check, acks, and the panel messages each test pushes.
 
 ## Credits
 
-The client is our own (no maintained JavaScript TPI client on npm), written
+The client is our own: npm has no stand-alone, maintained TPI client to
+depend on. The JavaScript implementations live inside two Homebridge plugins,
+`homebridge-envisalink` (DSC) and `homebridge-envisalink-ademco` (Honeywell,
+MIT), tied to Homebridge and not published as libraries. It was written
 from:
 
 - [ufodone/pyenvisalink](https://github.com/ufodone/pyenvisalink) (MIT), the
   library behind the Home Assistant Envisalink integration: message codes,
-  Honeywell bitfields, keypad sequences, panic keys, keep-alive;
+  keypad sequences, panic keys, keep-alive;
+- `homebridge-envisalink-ademco` (MIT): the bit order of the Honeywell zone
+  bitfield (`%01`);
 - the EyezOn _Envisalink TPI Programmer's Document_ (DSC and Honeywell
   editions): frame layout, checksum, login, command and error codes.
+
+Sharing one module between several TPI clients needs a relay such as
+envisalink-proxy; this integration is a single direct client.
 
 No code was copied; see [TODO.md](TODO.md), Decisions.
 

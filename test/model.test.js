@@ -5,10 +5,10 @@ import assert from 'node:assert/strict';
 import { TIMINGS } from '../src/constants.js';
 import { applyEvent, emptyState, expireKeypadFaults, panicActive } from '../src/model.js';
 
-function run(events, state = emptyState(), at = 1_000) {
+function run(events, state = emptyState(), at = 1_000, zoneType = () => undefined) {
   const effects = [];
   for (const event of events) {
-    const result = applyEvent(state, event, { at });
+    const result = applyEvent(state, event, { at, zoneType });
     state = result.state;
     effects.push(...result.effects);
   }
@@ -63,12 +63,18 @@ test('the user of a recent user event is credited', () => {
 });
 
 test('an alarm: one event with the zone in alarm, cleared by the disarm', () => {
-  let { state, effects } = run([
-    { type: 'partition', partition: 1, mode: 'armed_away' },
-    { type: 'zone', partition: 1, zone: 4, alarm: true },
-    { type: 'partition', partition: 1, alarm: true },
-    { type: 'partition', partition: 1, alarm: true },
-  ]);
+  const types = { 4: 'motion', 5: 'smoke' };
+  let { state, effects } = run(
+    [
+      { type: 'partition', partition: 1, mode: 'armed_away' },
+      { type: 'zone', partition: 1, zone: 4, alarm: true },
+      { type: 'partition', partition: 1, alarm: true },
+      { type: 'partition', partition: 1, alarm: true },
+    ],
+    emptyState(),
+    1_000,
+    (zone) => types[zone],
+  );
   assert.deepEqual(effects, [{ type: 'alarm', kind: 'intrusion', partition: 1, zone: 4 }]);
   ({ state, effects } = run(
     [{ type: 'partition', partition: 1, mode: 'disarmed', alarm: false }],
@@ -76,6 +82,28 @@ test('an alarm: one event with the zone in alarm, cleared by the disarm', () => 
   ));
   assert.equal(state.zones[4].alarm, false);
   assert.equal(effects[0].type, 'disarmed');
+});
+
+test('the kind of an alarm: the zone kind, the fire bit, else unknown', () => {
+  const kindOf = (events, zoneType) =>
+    run(events, emptyState(), 1_000, zoneType).effects.find((e) => e.type === 'alarm').kind;
+  const alarm = { type: 'partition', partition: 1, alarm: true };
+  const zone5 = { type: 'zone', partition: 1, zone: 5, alarm: true };
+  assert.equal(kindOf([alarm]), 'partition', 'no zone known');
+  assert.equal(kindOf([zone5, alarm]), 'partition', 'a zone of unknown kind');
+  assert.equal(
+    kindOf([zone5, alarm], () => 'smoke'),
+    'fire',
+  );
+  assert.equal(
+    kindOf([zone5, alarm], () => 'leak'),
+    'leak',
+  );
+  assert.equal(
+    kindOf([zone5, alarm], () => 'opening'),
+    'intrusion',
+  );
+  assert.equal(kindOf([{ ...alarm, fire: true }]), 'fire', 'the Honeywell fire bit');
 });
 
 test('panic: an alarm event when it starts, the state until its restore', () => {
@@ -99,13 +127,7 @@ test('zones: TPI states, the Honeywell bitfield, keypad faults that expire', () 
     { type: 'zone', zone: 3, tamper: true },
     { type: 'zone', zone: 3, fault: false },
   ]);
-  assert.deepEqual(state.zones[3], {
-    zone: 3,
-    open: true,
-    tamper: true,
-    fault: false,
-    source: 'tpi',
-  });
+  assert.deepEqual(state.zones[3], { zone: 3, open: true, tamper: true, fault: false });
   const open = Array(64).fill(false);
   open[1] = true;
   ({ state } = run([{ type: 'zones', open }], state));
@@ -114,22 +136,31 @@ test('zones: TPI states, the Honeywell bitfield, keypad faults that expire', () 
   assert.equal(state.zones[10], undefined, 'closed unknown zones are not added');
 
   ({ state } = run(
-    [{ type: 'zone', zone: 9, partition: 1, open: true, source: 'keypad' }],
+    [
+      { type: 'zone', zone: 9, partition: 1, open: true, source: 'keypad' },
+      { type: 'zone', zone: 11, partition: 1, alarm: true, source: 'keypad' },
+    ],
     state,
     100_000,
   ));
-  assert.equal(state.zones[9].source, 'keypad');
+  assert.deepEqual(state.zones[9].keypad, { open: 100_000 });
   let expired = expireKeypadFaults(state, { at: 100_000 + TIMINGS.keypadFaultExpiry - 1 });
   assert.equal(expired.changed, false);
   expired = expireKeypadFaults(state, { at: 100_000 + TIMINGS.keypadFaultExpiry + 1 });
   assert.equal(expired.changed, true);
   assert.equal(expired.state.zones[9].open, false);
+  assert.equal(expired.state.zones[11].alarm, false, 'a keypad alarm expires too');
   assert.equal(expired.state.zones[2].open, true, 'bitfield zones do not expire');
 
-  // Ready to arm: the keypad zones of that partition are closed at once.
+  // Ready to arm: the keypad zones of that partition are closed at once (not their alarm).
   const cleared = run([{ type: 'keypad_clear', partition: 1 }], state).state;
   assert.equal(cleared.zones[9].open, false);
+  assert.equal(cleared.zones[11].alarm, true);
   assert.equal(cleared.zones[2].open, true);
+
+  // A TPI value takes the zone back from the keypad: it no longer expires.
+  const confirmed = run([{ type: 'zone', zone: 9, open: true }], state).state;
+  assert.equal(confirmed.zones[9].keypad, undefined);
 });
 
 test('system values merge, undefined values are ignored', () => {

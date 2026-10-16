@@ -25,8 +25,13 @@ export const SCENE_TRIGGERS = {
 export const MODES = ['disarmed', 'armed_away', 'armed_stay', 'armed_night'];
 export const ARM_MODES = ['armed_away', 'armed_stay', 'armed_night'];
 
-/** Kinds of the alarm_triggered scene event. */
-export const ALARM_KINDS = ['intrusion', 'fire', 'medical', 'panic', 'duress'];
+/**
+ * Kinds of the alarm_triggered scene event. `partition`: the panel says the
+ * partition is in alarm without saying why (no zone known, or a zone of an
+ * unknown kind); `intrusion`: an opening or motion zone is in alarm; `fire`:
+ * a smoke zone or the fire alarm; `leak`: a leak zone.
+ */
+export const ALARM_KINDS = ['partition', 'intrusion', 'fire', 'leak', 'medical', 'panic', 'duress'];
 
 /** Panic alarms the panel can raise from the TPI (DSC 060, Honeywell A/B/C keys). */
 export const PANIC_KINDS = ['fire', 'medical', 'police'];
@@ -49,8 +54,17 @@ export const LIMITS = {
   maxLoginRefusals: 3,
   /** States per minute sent to Gladys (the core admits 300). */
   statesPerMinute: 240,
-  /** Scene events per minute (the core admits 300). */
+  /**
+   * Part of it only the panel and partition states may use: a chatty zone
+   * never delays an alarm or a mode change.
+   */
+  priorityStates: 60,
+  /** Scene events per minute (the core admits 300); alarm_triggered is never dropped. */
   eventsPerMinute: 120,
+  /** Tries of an alarm_triggered event refused by Gladys or the network. */
+  alarmEventTries: 3,
+  /** Sessions shorter than shortSession in a row: another TPI client is likely. */
+  shortSessions: 3,
 };
 
 export const DEFAULT_PORT = 4025;
@@ -78,8 +92,18 @@ export const TIMINGS = {
    * (the keypad cycles through the faulted zones every few seconds).
    */
   keypadFaultExpiry: 45_000,
-  /** How often the Honeywell keypad faults are checked for expiry. */
+  /** How often the Honeywell keypad faults expire and the heartbeats are checked. */
   sweep: 10_000,
-  /** publishChangedStates heartbeat. */
+  /** An unchanged state is sent again this often… */
   stateHeartbeat: 30 * 60_000,
+  /** …plus a per-feature offset within this spread, so the heartbeats do not come in one burst. */
+  heartbeatSpread: 5 * 60_000,
+  /** Waits between two tries of an alarm_triggered event. */
+  alarmEventRetry: [5_000, 20_000],
+  /** A session that ends this soon after its login counts as short. */
+  shortSession: 30_000,
+  /** The wait after several short sessions in a row (another client kicks us out). */
+  contendedRetry: 5 * 60_000,
+  /** New zones reported together (a DSC status dump) are published as one device list. */
+  discoveryDebounce: 500,
 };
