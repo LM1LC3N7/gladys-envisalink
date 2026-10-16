@@ -134,5 +134,68 @@ test('alarm_triggered refused by Gladys is tried again, three times in all', asy
   assert.equal(calls, LIMITS.alarmEventTries);
   await publisher.sceneEvent('armed', {});
   assert.equal(calls, LIMITS.alarmEventTries + 1, 'other events are not retried');
-  publisher.stop();
+  publisher.stop({ final: true });
+});
+
+test('a restart keeps the alarm_triggered retries, the container stop cancels them', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+  let calls = 0;
+  const publisher = new StatePublisher({
+    gladys: {
+      publishSceneEvent: async () => {
+        calls += 1;
+        if (calls === 1) throw new Error('network down');
+      },
+    },
+    logger: quietLogger(),
+  });
+  await publisher.sceneEvent('alarm_triggered', {});
+  publisher.stop(); // a new address or password: the session restarts
+  t.mock.timers.tick(TIMINGS.alarmEventRetry[0]);
+  await settle();
+  assert.equal(calls, 2, 'the retry still ran');
+
+  calls = 0;
+  await publisher.sceneEvent('alarm_triggered', {});
+  publisher.stop({ final: true }); // the container stops
+  t.mock.timers.tick(60_000);
+  await settle();
+  assert.equal(calls, 1, 'no retry after the final stop');
+});
+
+test('a value is never dropped while another one of the feature is on its way', async () => {
+  const sent = [];
+  let release;
+  let hang = false;
+  const gladys = {
+    publishStates: (batch) => {
+      sent.push(...batch);
+      if (hang) {
+        hang = false;
+        return new Promise((resolve) => (release = resolve));
+      }
+      return Promise.resolve({ success: true });
+    },
+  };
+  const publisher = new StatePublisher({ gladys, logger: quietLogger() });
+  await publisher.publish([mode('disarmed')]); // accepted by Gladys
+  hang = true;
+  const done = publisher.publish([mode('armed_away')]); // on its way, slow
+  await settle();
+  // Back to "disarmed" while "armed_away" travels: equal to the last accepted
+  // value, but Gladys is about to hold armed_away: it must be sent.
+  publisher.publish([mode('disarmed')]);
+  assert.equal(publisher.pending.size, 1, 'queued, not dropped');
+  // The same value as the one on its way adds nothing.
+  publisher.publish([mode('armed_away')]);
+  assert.equal(publisher.pending.size, 0);
+  publisher.publish([mode('disarmed')]);
+  release({ success: true });
+  await done;
+  await publisher.flush();
+  assert.deepEqual(
+    sent.map((s) => s.text),
+    ['disarmed', 'armed_away', 'disarmed'],
+  );
+  publisher.stop({ final: true });
 });

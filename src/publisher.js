@@ -78,6 +78,8 @@ export class StatePublisher {
     this.chain = Promise.resolve();
     this.timer = undefined;
     this.retries = new Set();
+    /** feature external id -> value key of the request on its way to Gladys. */
+    this.inflight = new Map();
   }
 
   heartbeat(id) {
@@ -89,8 +91,20 @@ export class StatePublisher {
     const now = this.now();
     for (const state of states) {
       const id = state.device_feature_external_id;
+      const key = valueKey(state);
+      const sending = this.inflight.get(id);
+      if (sending !== undefined) {
+        // A value of this feature is on its way: compare with it, never with
+        // the older accepted one (Gladys will hold what is being sent).
+        if (sending === key) this.pending.delete(id);
+        else {
+          this.pending.delete(id);
+          this.pending.set(id, state);
+        }
+        continue;
+      }
       const last = this.last.get(id);
-      const same = last && last.key === valueKey(state);
+      const same = last && last.key === key;
       if (same && now - last.at < this.heartbeat(id)) {
         // Back to the value Gladys has: a change still waiting is void.
         this.pending.delete(id);
@@ -136,13 +150,18 @@ export class StatePublisher {
     for (const state of batch) this.pending.delete(state.device_feature_external_id);
     for (let i = 0; i < batch.length; i += BATCH) {
       const part = batch.slice(i, i + BATCH);
+      for (const state of part) {
+        this.inflight.set(state.device_feature_external_id, valueKey(state));
+      }
       try {
         await this.gladys.publishStates(part);
         const at = this.now();
         for (const state of part) {
           this.last.set(state.device_feature_external_id, { key: valueKey(state), at });
+          this.inflight.delete(state.device_feature_external_id);
         }
       } catch (err) {
+        for (const state of part) this.inflight.delete(state.device_feature_external_id);
         this.logger.warn(`Publishing the states failed: ${err.message}`);
         // Kept for the next try, unless a newer value arrived meanwhile.
         for (const state of part) {
@@ -194,12 +213,20 @@ export class StatePublisher {
     }
   }
 
-  stop() {
+  /**
+   * Stops the delayed state sends. The alarm_triggered retries survive a
+   * restart of the TPI session (new address or password): an alarm that
+   * happened must still reach the scenes. Only `final` (the container stops)
+   * cancels them.
+   */
+  stop({ final = false } = {}) {
     if (this.timer) {
       this.timers.clearTimeout(this.timer);
       this.timer = undefined;
     }
-    for (const timer of this.retries) this.timers.clearTimeout(timer);
-    this.retries.clear();
+    if (final) {
+      for (const timer of this.retries) this.timers.clearTimeout(timer);
+      this.retries.clear();
+    }
   }
 }

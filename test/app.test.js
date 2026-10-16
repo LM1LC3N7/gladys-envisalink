@@ -22,7 +22,7 @@ async function setup(t, { config = {}, type = 'dsc' } = {}) {
   const app = new EnvisalinkApp({ gladys, logger, connect: server.connect });
   registerHandlers(gladys, app, logger);
   await gladys.connect();
-  t.after(() => app.stop());
+  t.after(() => app.stop({ final: true }));
   await settle();
   const device = (externalId) =>
     gladys.fake.discoveredDevices.find((d) => d.external_id === externalId);

@@ -108,6 +108,10 @@ Pour passer d'un mode armé à un autre, désarmez d'abord.
   plus affichée depuis 45 s, ou dès que la partition est « prête » (sauf
   l'alarme, levée au désarmement). Un « ALARM » affiché par un clavier
   désarmé (mémoire d'alarme) n'est pas une alarme.
+- Honeywell, centrale armée : le clavier n'affiche plus les défauts. Une
+  porte restée ouverte pendant l'armement apparaît donc **fermée au bout de
+  45 s**, sauf si la centrale la signale par son champ de bits (`%01`). Ne
+  vous fiez pas à l'état des ouvertures d'une centrale Honeywell armée.
 - Honeywell : une partition apparaît **armée dès le début du délai de
   sortie** (les icônes du clavier s'allument tout de suite), alors qu'une
   DSC ne l'est qu'à la fin du délai. Le déclencheur « Partition armée » part

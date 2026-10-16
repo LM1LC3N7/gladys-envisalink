@@ -104,6 +104,10 @@ To go from one armed mode to another, disarm first.
   for 45 s, or as soon as the partition is "ready" (except the alarm, cleared
   by the disarm). An "ALARM" shown by a disarmed keypad (alarm memory) is not
   an alarm.
+- Honeywell, panel armed: the keypad no longer shows the faults. A door left
+  open while arming therefore shows **closed after 45 s**, unless the panel
+  reports it in its zone bitfield (`%01`). Do not rely on the opening states
+  of an armed Honeywell panel.
 - Honeywell: a partition shows **armed from the start of the exit delay**
   (the keypad icons light at once), while a DSC panel shows it at the end of
   the delay. The "Partition armed" trigger therefore fires earlier on

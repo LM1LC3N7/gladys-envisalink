@@ -115,9 +115,13 @@ export class EnvisalinkApp {
     this.sweeper = this.timers.setInterval(() => this.guard(() => this.sweep()), TIMINGS.sweep);
   }
 
-  stop() {
+  /**
+   * Stops the session. `final` only when the container stops: a restart
+   * (new address or password) keeps the alarm_triggered retries running.
+   */
+  stop({ final = false } = {}) {
     this.client.stop();
-    this.publisher.stop();
+    this.publisher.stop({ final });
     if (this.sweeper) {
       this.timers.clearInterval(this.sweeper);
       this.sweeper = undefined;

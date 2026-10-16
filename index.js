@@ -15,7 +15,8 @@ const app = new EnvisalinkApp({ gladys });
 
 registerHandlers(gladys, app, logger);
 // Closing the TPI session frees the Envisalink for the next client at once.
-gladys.handleShutdown(() => app.stop());
+// `final`: the container stops, the pending alarm event retries go with it.
+gladys.handleShutdown(() => app.stop({ final: true }));
 
 logger.info('Starting the Envisalink integration...');
 gladys.connect().catch((err) => {
