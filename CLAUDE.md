@@ -31,16 +31,17 @@ pushing.
 ## Architecture
 
 ```
-index.js                          SDK wiring only: handlers registered before connect()
-src/devices/index.js              registry of the device blueprints + dispatch helpers
-src/devices/<type>.js             one device type per file (buildDevice, onPoll, onSetValue...)
-src/scenes.js                     scene action handlers (manifest `scene_actions`)
-src/widgets.js                    dashboard widget handlers (manifest `widgets`)
-src/config.js                     DEFAULT_CONFIG (mirrors the manifest defaults) + normalization
-src/weather.js                    example driver (Open-Meteo)
+index.js                          SDK wiring only (src/handlers.js registers the handlers before connect())
+src/app.js                        EnvisalinkApp: lifecycle, client events, commands, scene events
+src/tpi/client.js                 one TPI TCP session: login, keep-alive, watchdog, reconnection, commands
+src/tpi/dsc.js, honeywell.js      the two TPI flavours: lines -> neutral events, commands (pure)
+src/model.js                      neutral events -> panel state + transitions (pure)
+src/devices.js                    panel state -> Gladys devices and states (pure)
+src/publisher.js                  states / scene events under the Gladys per-minute limits
+src/config.js                     DEFAULTS (mirror the manifest defaults) + normalization
 gladys-assistant-integration.json manifest: name, config_schema, actions, image...
 docs/en.md, docs/fr.md            user documentation, re-hosted by Gladys (mandatory)
-test/                             node --test, against the SDK's fake Gladys (integration-sdk/testing)
+test/                             node --test, SDK fake Gladys + in-memory Envisalink (test/helpers)
 .github/scripts/release.mjs       release helpers (manifest bump, changelog), tested in test/
 ```
 

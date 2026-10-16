@@ -1,61 +1,97 @@
-# Demo Devices Template
+# Envisalink (DSC, Honeywell)
 
-This is the user documentation of the integration. Gladys re-hosts this file
-and shows a permanent **Documentation** link to it in the Configuration screen
-(in the user's language, with English as the fallback) — it is when
-configuring that the user needs it most. Keep the short onboarding hints in
-the `section` blocks of the manifest `config_schema`; put the long
-step-by-step (screenshots, troubleshooting…) here.
+This integration connects a **DSC PowerSeries** or **Honeywell / Ademco
+Vista** alarm panel fitted with an **Envisalink EVL-3 or EVL-4** module to
+Gladys, locally, through the module's TPI interface (TCP port 4025), without
+the EyezOn cloud. Unofficial, not affiliated with EyezOn, DSC or Honeywell.
 
 ## What you get
 
-Six demo devices show up after installation: a weather station (real data
-from Open-Meteo), a switch, a dimmable light, a smart plug with power
-metering, a motion sensor and a camera.
+- **One device per partition**, "Alarm partition N": the **mode** (disarmed,
+  armed away, armed stay, armed night), **alarm in progress** and **ready to
+  arm**. The mode can be set from the dashboard or a scene.
+- **One device per zone**: open / closed (or motion, smoke, water leak
+  depending on the chosen kind), **alarm**, **tamper**, **fault**.
+- **The panel**: Envisalink connected, mains power, low battery, tamper,
+  system trouble, panic alarm.
+- **Scene triggers**: "Envisalink alarm triggered" (intrusion, fire,
+  medical, panic, duress), "Envisalink partition armed" (with the mode, the
+  user number when known, and whether Gladys asked for it), "Envisalink
+  partition disarmed".
+- **Scene actions**: arm, disarm (if allowed), panic alarm (if allowed).
+
+## Before you start
+
+1. The Envisalink must be on your local network with a fixed address (a DHCP
+   reservation in your router).
+2. Note the **password of the module's local web page** ("user" by default).
+   It is not your EyezOn account password.
+3. **One TPI connection at a time**: if Home Assistant, another Gladys or
+   another program already uses the module, stop it, or both will keep
+   kicking each other out.
 
 ## Configuration
 
-1. Open the **Configuration** tab of the integration.
-2. Set the **latitude** and **longitude** the demo weather station should
-   observe (they default to Paris), and pick your temperature unit.
-   The **refresh interval** sets how often the weather station and the
-   plug's power are read: every 5 minutes by default, every minute at most.
-3. Save: the devices appear in the **Discovery** tab, ready to be added.
+1. **Address of the Envisalink**: its IP (e.g. `192.168.1.40`), optionally
+   with the port (`192.168.1.40:4025`).
+2. **TPI port**: 4025 unless changed.
+3. **Envisalink password**.
+4. **Alarm panel**: leave "Automatic" (DSC and Honeywell are recognised from
+   the module's first message).
+5. **Number of partitions**: 1 in most homes.
+6. **Zones** (optional): the zones to show from the start, with a name and a
+   kind, separated by commas:
+   `1=Front door, 2=Hall:motion, 5=Kitchen:smoke, 6=Laundry:leak, 10-12`.
+   Kinds: `opening` (default), `motion`, `smoke`, `leak`. A zone the panel
+   reports that is not in the list is added by itself, as an opening.
+7. Save, then add the devices from the **Discovery** tab.
 
-The **Prefer the local connection** toggle drives the demo plug: it reports
-the channel it actually uses as a badge (local or cloud), with an orange dot
-when it runs degraded (local refused, cloud fallback).
+The **Test the connection** button reconnects at once, asks the panel for its
+full status (DSC) and shows the mode of each partition.
 
-## Actions
+## Safety
 
-- **Test the weather provider** — performs a live request to Open-Meteo and
-  shows the current temperature and humidity under the button.
-- **Identify a device** — pick one of your devices in the list and it will
-  signal itself (the demo light "blinks" in the logs).
+- **Arming** is allowed by default ("Allow arming" option).
+- **Disarming is off by default.** Turn on "Allow disarming" only if your
+  Gladys is well protected: anyone who can control your devices will be able
+  to disarm the alarm.
+- **Panic alarms** from Gladys are off by default.
+- **User code**: needed to disarm, and to arm a Honeywell panel or a DSC
+  panel without "quick arm". A dedicated code is best. It is never written in
+  the logs, nor is the password. Every command (sent or refused) is logged.
+- A DSC panel asking for a code while arming (message 900) only gets it
+  within 20 seconds of a Gladys command.
 
-## Scenes
+## Modes
 
-The integration adds its own cards to the scene editor (Gladys 5.1 or
-later), under the **Integrations** category:
+| Gladys mode | DSC                          | Honeywell          |
+| ----------- | ---------------------------- | ------------------ |
+| Armed away  | command 030                  | code + 2 (Away)    |
+| Armed stay  | command 031                  | code + 3 (Stay)    |
+| Armed night | command 032 (no entry delay) | code + 7 (Instant) |
+| Disarmed    | command 040 + code           | code + 1 (Off)     |
 
-- **Motion detected** (trigger) — starts the scene when a demo motion sensor
-  sees something move. Optionally pick the sensor and what moved (person,
-  animal); left empty, any detection matches. The following actions can
-  read what moved with `{{triggerEvent.data.target}}`.
-- **Identify a device** (action) — makes the chosen device signal itself.
-  It returns whether the device could signal itself, so the following
-  actions can depend on it.
+To go from one armed mode to another, disarm first.
 
-## Dashboard
+## Known limits
 
-Add the **Demo status** widget to a dashboard: it shows the live
-temperature of the weather station and the power of the office plug, the
-connection the plug currently uses (orange when degraded) and the observed
-location. Its **Identify the light** button makes the demo light signal
-itself.
+- Honeywell: the panel reports zones only through the virtual keypad display
+  and a bitfield that is not always sent. A zone shown "FAULT" on the keypad
+  is closed again when the keypad has not shown it for 45 s, or as soon as
+  the partition is "ready".
+- The state of a zone shows from its first change (or the panel's first full
+  status).
+- The Gladys limits (300 states and 300 events per minute) are respected:
+  over 240 states a minute, the latest values wait for the next minute; over
+  120 scene events a minute, they are dropped and logged.
 
 ## Troubleshooting
 
-The integration logs everything it does: check the integration logs from the
-Gladys UI (or `docker logs` on the host) with `LOG_LEVEL=debug` for the full
-detail.
+- "Envisalink unreachable": check the address, that the module answers (its
+  local web page), and that no other program is connected to port 4025.
+- "refused the password": after three refusals the connection stops so as
+  not to lock the module. Fix the password, then save or click "Test the
+  connection".
+- The link is checked by a keep-alive every minute; with no answer for 3
+  minutes, the integration reconnects (5 s, 10 s, 30 s, 1 min, 2 min, then
+  every 5 min).
