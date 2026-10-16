@@ -10,6 +10,8 @@ the notes of the version's GitHub Release.
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-16
+
 ### Added
 
 - DSC PowerSeries and Honeywell / Ademco Vista alarm panels through an
@@ -44,4 +46,5 @@ the notes of the version's GitHub Release.
   mode without entry delay, monitoring station).
 - Device, feature and mode names in French or English.
 
-[Unreleased]: https://github.com/LM1LC3N7/gladys-envisalink/commits/main
+[Unreleased]: https://github.com/LM1LC3N7/gladys-envisalink/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/LM1LC3N7/gladys-envisalink/releases/tag/v0.1.1
