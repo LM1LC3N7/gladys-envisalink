@@ -10,6 +10,13 @@ the notes of the version's GitHub Release.
 
 ## [Unreleased]
 
+### Fixed
+
+- Armed and disarmed scene triggers lost when a DSC user code is not digits:
+  the user was sent as NaN, which the SDK refuses; it is now null, and every
+  scene event turns an undefined, non-finite or non-primitive value into
+  null.
+
 ## [0.1.1] - 2026-10-16
 
 ### Added

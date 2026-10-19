@@ -146,6 +146,21 @@ test('a failed arm sends the real mode back to the dashboard', async (t) => {
   assert.ok(ctx.logger.lines.some((line) => /failed to arm/.test(line)));
 });
 
+test('a user code that is not digits: armed and disarmed still reach Gladys (user: null)', async (t) => {
+  const ctx = await setup(t);
+  const { server, gladys } = ctx;
+  server.dsc('650', '1');
+  server.dsc('700', '1ab12');
+  server.dsc('652', '10');
+  server.dsc('750', '1x');
+  server.dsc('655', '1');
+  await settle();
+  assert.deepEqual(gladys.fake.sceneEvents, [
+    { key: 'armed', data: { partition: '1', mode: 'armed_away', user: null, by_gladys: false } },
+    { key: 'disarmed', data: { partition: '1', user: null, by_gladys: false } },
+  ]);
+});
+
 test('arming from the keypad, an alarm, a disarm: scene events', async (t) => {
   const ctx = await setup(t);
   const { server, gladys, partition } = ctx;

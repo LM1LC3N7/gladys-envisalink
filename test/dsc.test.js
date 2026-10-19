@@ -95,6 +95,13 @@ test('system troubles, panic, users, code required', () => {
   assert.deepEqual(events(frame('750', '10040').trim()), [
     { type: 'user', partition: 1, action: 'disarm', user: 40 },
   ]);
+  // A user field that is not digits: no user (never NaN, refused by the SDK).
+  assert.deepEqual(events(frame('700', '1ab12').trim()), [
+    { type: 'user', partition: 1, action: 'arm', user: null },
+  ]);
+  assert.deepEqual(events(frame('750', '1').trim()), [
+    { type: 'user', partition: 1, action: 'disarm', user: null },
+  ]);
   assert.deepEqual(events(frame('900', '14').trim()), [{ type: 'code_required', partition: 1 }]);
   assert.deepEqual(events(frame('670', '1').trim()), [
     { type: 'error', code: 'invalid_code', partition: 1 },

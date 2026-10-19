@@ -94,6 +94,11 @@ export const SYSTEM_ERRORS = {
 
 const zone = (text) => Number.parseInt(text, 10);
 const partition = (text) => Number.parseInt(text, 10);
+/** The user code number of 700/750 (4 digits after the partition); null if not digits. */
+const userCode = (data) => {
+  const text = String(data ?? '').slice(1, 5);
+  return /^\d{1,4}$/.test(text) ? Number(text) : null;
+};
 
 /**
  * One frame -> the events it carries (src/model.js), plus the protocol
@@ -195,12 +200,12 @@ export function decode({ command, data }) {
     case '673':
       return [{ type: 'error', code: 'busy', partition: p }];
     case '700':
-      return [{ type: 'user', partition: p, action: 'arm', user: Number(data.slice(1, 5)) }];
+      return [{ type: 'user', partition: p, action: 'arm', user: userCode(data) }];
     case '701':
     case '702':
       return [{ type: 'user', partition: p, action: 'arm', user: null }];
     case '750':
-      return [{ type: 'user', partition: p, action: 'disarm', user: Number(data.slice(1, 5)) }];
+      return [{ type: 'user', partition: p, action: 'disarm', user: userCode(data) }];
     case '751':
       return [{ type: 'user', partition: p, action: 'disarm', user: null }];
     case '800':
