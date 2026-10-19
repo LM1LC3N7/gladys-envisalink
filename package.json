@@ -1,6 +1,6 @@
 {
   "name": "gladys-envisalink",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "description": "Gladys Assistant external integration for DSC PowerSeries and Honeywell Vista alarm panels, locally through an Envisalink EVL-3 / EVL-4 (TPI). Unofficial, not affiliated with EyezOn, DSC or Honeywell.",
   "type": "module",

@@ -6,8 +6,8 @@
     "en": "DSC PowerSeries and Honeywell Vista alarms, locally through an Envisalink EVL-3 / EVL-4.",
     "fr": "Alarmes DSC PowerSeries et Honeywell Vista en local, via un module Envisalink EVL-3 / EVL-4."
   },
-  "version": "0.1.1",
-  "docker_image": "ghcr.io/lm1lc3n7/gladys-envisalink:0.1.1",
+  "version": "0.1.2",
+  "docker_image": "ghcr.io/lm1lc3n7/gladys-envisalink:0.1.2",
   "gladys_version": ">=5.1.0",
   "cover_image": "https://raw.githubusercontent.com/LM1LC3N7/gladys-envisalink/main/cover.png",
   "categories": ["security"],
