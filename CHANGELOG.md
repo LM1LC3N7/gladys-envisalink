@@ -10,6 +10,8 @@ the notes of the version's GitHub Release.
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-10-23
+
 ## [0.1.2] - 2026-10-19
 
 ### Fixed
@@ -55,6 +57,7 @@ the notes of the version's GitHub Release.
   mode without entry delay, monitoring station).
 - Device, feature and mode names in French or English.
 
-[Unreleased]: https://github.com/LM1LC3N7/gladys-envisalink/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/LM1LC3N7/gladys-envisalink/compare/v0.1.3...HEAD
+[0.1.3]: https://github.com/LM1LC3N7/gladys-envisalink/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/LM1LC3N7/gladys-envisalink/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/LM1LC3N7/gladys-envisalink/releases/tag/v0.1.1
