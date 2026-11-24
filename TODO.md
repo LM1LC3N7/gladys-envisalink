@@ -118,3 +118,7 @@ up to date at the end of every milestone.
   3 tries (5 s, 20 s) on an error.
 - **Scene events**: one per transition; none for the first mode seen after a
   start; partitions sent as strings so the select filters match.
+
+## Next patch
+
+- Migration review minors: see `_lots/migration-reviews/w16-gladys-envisalink-r1.md`.
