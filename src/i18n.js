@@ -102,10 +102,6 @@ export const T = {
     en: 'The Envisalink is not connected: nothing was sent.',
     fr: "L'Envisalink n'est pas connecté : rien n'a été envoyé.",
   },
-  armRefused: {
-    en: 'Arming from Gladys is disabled in the configuration.',
-    fr: "L'armement depuis Gladys est désactivé dans la configuration.",
-  },
   disarmRefused: {
     en: 'Disarming from Gladys is disabled in the configuration.',
     fr: 'Le désarmement depuis Gladys est désactivé dans la configuration.',

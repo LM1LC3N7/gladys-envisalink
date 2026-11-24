@@ -6,7 +6,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { DEFAULTS, LANGUAGES } from '../src/config.js';
+import { createFakeGladys } from '@gladysassistant/integration-sdk/testing';
+import { DEFAULTS, LANGUAGES, normalizeConfig } from '../src/config.js';
+import { PANEL_FEATURES, PARTITION_FEATURES, ZONE_FEATURES, buildDevices } from '../src/devices.js';
+import { emptyState } from '../src/model.js';
+import { assertCoreDevice } from './helpers/coreFeature.js';
 import {
   ACTIONS,
   ALARM_KINDS,
@@ -16,6 +20,7 @@ import {
   PANIC_KINDS,
   SCENE_ACTIONS,
   SCENE_TRIGGERS,
+  ZONE_TYPES,
 } from '../src/constants.js';
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
@@ -146,4 +151,26 @@ test('the trigger fields and variables are what the events carry', () => {
   assert.deepEqual(values(kinds), ALARM_KINDS);
   const modes = manifest.scene_triggers.find((t) => t.key === 'armed').fields[1];
   assert.deepEqual(values(modes), ARM_MODES);
+});
+
+test('every feature has a numeric min and max and the other core fields', () => {
+  const gladys = createFakeGladys({ selector: 'envisalink' });
+  const config = normalizeConfig({
+    host: '192.168.1.50',
+    partitions: 2,
+    zones: ZONE_TYPES.map((kind, i) => `${i + 1}=Zone ${i + 1}:${kind}`).join(', '),
+  });
+  for (const panelType of PANEL_TYPES) {
+    let features = 0;
+    for (const device of buildDevices(gladys, config, emptyState(), panelType)) {
+      features += assertCoreDevice(device, `${panelType} ${device.external_id}`);
+    }
+    assert.equal(
+      features,
+      Object.keys(PANEL_FEATURES).length +
+        2 * Object.keys(PARTITION_FEATURES).length +
+        ZONE_TYPES.length * (1 + Object.keys(ZONE_FEATURES).length),
+      panelType,
+    );
+  }
 });

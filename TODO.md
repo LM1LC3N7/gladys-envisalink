@@ -77,8 +77,8 @@ up to date at the end of every milestone.
   has no alarm-panel feature. Night = no entry delay (DSC 032, Honeywell 7
   Instant), the Home Assistant convention. Changing armed mode needs a
   disarm first (refused with a message, never chained by itself).
-- **Safety**: `allow_arm` true, `allow_disarm` and `allow_panic` false by
-  default (Louis's rule). Refused commands are logged at warn; the dashboard
+- **Safety**: arming always allowed (`allow_arm` dropped on 2026-11-24),
+  `allow_disarm` and `allow_panic` false by default (Louis's rule). Refused commands are logged at warn; the dashboard
   gets the real mode back (forget + republish), also after a DSC 659 / 672 /
   670 (failed arm, refused code). Frames are logged by name, never by
   content (password, code). The DSC `900` code request is answered only

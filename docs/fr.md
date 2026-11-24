@@ -65,7 +65,8 @@ complet à la centrale (DSC) et affiche le mode de chaque partition.
 
 ## Sécurité
 
-- **L'armement** est permis par défaut (option « Autoriser l'armement »).
+- **L'armement** est toujours autorisé (c'est protecteur ; aucune option ne
+  le bloque).
 - **Le désarmement est désactivé par défaut.** Activez « Autoriser le
   désarmement » seulement si votre Gladys est bien protégé : toute personne
   pouvant piloter vos appareils pourra désarmer l'alarme.

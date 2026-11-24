@@ -4,7 +4,7 @@
 // (src/devices.js), the scene events, the commands. index.js only wires the
 // SDK handlers to it.
 //
-// Safety: arming is allowed unless the configuration forbids it; disarming
+// Safety: arming is always allowed (it protects); disarming
 // and panic alarms are off unless the configuration allows them. Every
 // command, sent or refused, is logged; the user code and the password never
 // are.
@@ -429,12 +429,6 @@ export class EnvisalinkApp {
     const partition = this.partitionOf(rawPartition);
     if (!ARM_MODES.includes(mode)) throw new Error(`Unknown arming mode ${mode}`);
     const what = word(fill(COMMAND_NAMES.arm, mode, partition), 'en');
-    if (!this.config.allowArm) {
-      this.logger.warn(
-        `Arm REFUSED (${what}): arming from Gladys is disabled in the configuration`,
-      );
-      throw new Refused(word(T.armRefused, this.language));
-    }
     const current = this.state.partitions[partition]?.mode;
     if (current === mode) {
       this.logger.info(`Partition ${partition} already ${mode}: nothing sent`);

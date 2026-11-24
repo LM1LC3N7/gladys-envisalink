@@ -63,7 +63,7 @@ full status (DSC) and shows the mode of each partition.
 
 ## Safety
 
-- **Arming** is allowed by default ("Allow arming" option).
+- **Arming** is always allowed (it protects; no option can block it).
 - **Disarming is off by default.** Turn on "Allow disarming" only if your
   Gladys is well protected: anyone who can control your devices will be able
   to disarm the alarm.

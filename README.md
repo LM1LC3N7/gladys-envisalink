@@ -37,7 +37,7 @@ Gladys ⇄ SDK ⇄ src/handlers.js ⇄ src/app.js (EnvisalinkApp) ⇄ src/tpi/cl
   `input` ready), `ext:<selector>:zone:<n>` (`opening-sensor` /
   `motion-sensor` / `smoke-sensor` / `leak-sensor`, `siren`, `tamper`,
   `input` fault). The ids depend only on the panel's numbering.
-- **Safety**: arming allowed by default, disarming and panic opt-in; the
+- **Safety**: arming always allowed, disarming and panic opt-in; the
   user code and the password never reach the logs (frames carrying them are
   logged by name only).
 

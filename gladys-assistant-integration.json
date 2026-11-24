@@ -117,8 +117,8 @@
       "type": "section",
       "label": { "en": "Safety", "fr": "Sécurité" },
       "description": {
-        "en": "Anyone who can control the devices in Gladys (dashboard, scenes, the Gladys app) can use the alarm through this integration. Arming is allowed by default. Disarming and panic alarms are off by default: allow them only if your Gladys is well protected. Every command is written in the integration logs; the user code never is.",
-        "fr": "Toute personne pouvant piloter les appareils dans Gladys (tableau de bord, scènes, application Gladys) peut agir sur l'alarme par cette intégration. L'armement est permis par défaut. Le désarmement et les alarmes panique sont désactivés par défaut : ne les autorisez que si votre Gladys est bien protégé. Chaque commande est écrite dans les journaux de l'intégration, jamais le code utilisateur."
+        "en": "Anyone who can control the devices in Gladys (dashboard, scenes, the Gladys app) can use the alarm through this integration. Arming is always allowed. Disarming and panic alarms are off by default: allow them only if your Gladys is well protected. Every command is written in the integration logs; the user code never is.",
+        "fr": "Toute personne pouvant piloter les appareils dans Gladys (tableau de bord, scènes, application Gladys) peut agir sur l'alarme par cette intégration. L'armement est toujours autorisé. Le désarmement et les alarmes panique sont désactivés par défaut : ne les autorisez que si votre Gladys est bien protégé. Chaque commande est écrite dans les journaux de l'intégration, jamais le code utilisateur."
       }
     },
     {
@@ -130,13 +130,6 @@
         "fr": "Le code que vous tapez sur le clavier (DSC : 4 ou 6 chiffres, Honeywell : 4 chiffres). Nécessaire pour désarmer, et pour armer une centrale Honeywell ou une DSC sans armement rapide. Le mieux est un code utilisateur dédié : la centrale le journalise avec chaque commande."
       },
       "required": false
-    },
-    {
-      "key": "allow_arm",
-      "type": "boolean",
-      "label": { "en": "Allow arming from Gladys", "fr": "Autoriser l'armement depuis Gladys" },
-      "required": false,
-      "default": true
     },
     {
       "key": "allow_disarm",

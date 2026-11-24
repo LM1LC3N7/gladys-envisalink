@@ -10,7 +10,6 @@ test('defaults', () => {
   assert.equal(config.port, 4025);
   assert.equal(config.panelType, 'auto');
   assert.equal(config.partitions, 1);
-  assert.equal(config.allowArm, true);
   assert.equal(config.allowDisarm, false, 'disarming is opt-in');
   assert.equal(config.allowPanic, false, 'panic is opt-in');
   assert.equal(config.code, '');

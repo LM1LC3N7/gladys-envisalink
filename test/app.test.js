@@ -230,13 +230,15 @@ test('arming from Gladys: the frame, the feedback, by_gladys', async (t) => {
   assert.match(other.error, /disarm it first/);
 });
 
-test('arming can be forbidden', async (t) => {
-  const ctx = await setup(t, { config: { allow_arm: false } });
+test('arming never needs an option: it goes with every option off', async (t) => {
+  const ctx = await setup(t, {
+    config: { allow_disarm: false, allow_panic: false, allow_arm: false },
+  });
+  assert.equal(ctx.app.config.allowArm, undefined, 'no arming option any more');
   const { device, feature } = modeFeature(ctx);
   const ack = await ctx.gladys.fake.setValue(device, feature, 'armed_away');
-  assert.equal(ack.success, false);
-  assert.match(ack.error, /Arming from Gladys is disabled/);
-  assert.deepEqual(ctx.server.commands, ['00191']);
+  assert.equal(ack.success, true, ack.error);
+  assert.equal(ctx.server.commands.at(-1), frame('030', '1').trim(), 'arm away sent');
 });
 
 test('disarming is off by default: refused, logged, the real mode sent again', async (t) => {
