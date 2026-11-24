@@ -15,7 +15,8 @@ the notes of the version's GitHub Release.
 - **Arming no longer has an option**: `allow_arm` is removed from the
   manifest, the configuration, the texts and the docs; a protective
   command is never blocked. Disarming and the panic alarms keep their
-  options, off by default.
+  options, off by default. If you had unticked "Allow arming", Gladys, its
+  scenes and its app can arm the panel again after this update.
 - Integration SDK 0.16.1 (no change for the devices); the test runner stops a
   hanging test after 60 s.
 
